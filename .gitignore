@@ -1,0 +1,31 @@
+# Build directories
+build/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Object and library files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Coverage files
+*.gcno
+*.gcda
+*.gcov
+coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*~
