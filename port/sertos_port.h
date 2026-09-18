@@ -74,4 +74,9 @@ void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb);
  */
 void sertos_port_task_delete_hook(struct SertosTaskControlBlock* tcb);
 
+/**
+ * @brief Signals the simulator port to terminate the scheduler and exit.
+ */
+void sertos_port_stop_scheduler(void);
+
 #endif /* SERTOS_PORT_H */

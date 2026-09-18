@@ -199,9 +199,11 @@ SertosStatus sertos_scheduler_remove_ready(SertosTaskControlBlock* tcb)
         return SERTOS_STATUS_ERROR_INVALID_PARAM;
     }
 
-    linked_list_remove_direct(&s_ready_queues[tcb->priority], &tcb->state_node);
-    if (linked_list_is_empty(&s_ready_queues[tcb->priority])) {
-        (void)bitmap_clear_bit(&s_ready_bitmap, tcb->priority);
+    if ((tcb->state_node.prev != NULL) && (tcb->state_node.next != NULL)) {
+        linked_list_remove_direct(&s_ready_queues[tcb->priority], &tcb->state_node);
+        if (linked_list_is_empty(&s_ready_queues[tcb->priority])) {
+            (void)bitmap_clear_bit(&s_ready_bitmap, tcb->priority);
+        }
     }
 
     return SERTOS_STATUS_OK;
@@ -243,14 +245,17 @@ SertosTaskControlBlock* sertos_scheduler_perform_switch(void)
 void sertos_scheduler_switch_context(void)
 {
     SertosTaskControlBlock* next_task;
+    uint32_t crit;
 
     if (s_lock_nesting > 0U) {
         s_reschedule_pending = true;
         return;
     }
 
+    crit = sertos_port_enter_critical();
     next_task = sertos_scheduler_select_next_task();
     if (next_task == NULL) {
+        sertos_port_exit_critical(crit);
         return;
     }
 
@@ -258,25 +263,29 @@ void sertos_scheduler_switch_context(void)
 #if defined(SERTOS_PORT_HOST) || defined(_WIN32) || defined(__linux__)
         (void)sertos_scheduler_perform_switch();
 #endif
+        sertos_port_exit_critical(crit);
         sertos_port_yield();
+    } else {
+        sertos_port_exit_critical(crit);
     }
 }
 
 void sertos_scheduler_reschedule(void)
 {
     SertosTaskControlBlock* next_task;
+    uint32_t crit;
 
     if (!s_is_running) {
         return;
     }
 
+    crit = sertos_port_enter_critical();
     next_task = sertos_scheduler_select_next_task();
-    if (next_task == NULL) {
-        return;
-    }
-
-    if ((sertos_current_tcb == NULL) || (next_task->priority > sertos_current_tcb->priority)) {
+    if ((next_task != NULL) && ((sertos_current_tcb == NULL) || (next_task->priority > sertos_current_tcb->priority))) {
+        sertos_port_exit_critical(crit);
         sertos_scheduler_switch_context();
+    } else {
+        sertos_port_exit_critical(crit);
     }
 }
 

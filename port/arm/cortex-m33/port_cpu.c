@@ -142,10 +142,57 @@ void sertos_port_exit_critical(uint32_t status)
     }
 }
 
+#ifndef SYSTEM_CORE_CLOCK_HZ
+#define SYSTEM_CORE_CLOCK_HZ (25000000U)
+#endif
+
 void sertos_port_tick_init(uint32_t tick_rate_hz)
 {
-    (void)tick_rate_hz;
-    /* Configured per core clock in target BSP */
+    if (tick_rate_hz > 0U) {
+        /* Set PendSV to lowest priority (0xFF) in SHPR3 */
+        *(volatile uint32_t*)0xE000ED20U |= 0x00FF0000U;
+
+        CORTEX_M_SYSTICK_LOAD = (SYSTEM_CORE_CLOCK_HZ / tick_rate_hz) - 1U;
+        CORTEX_M_SYSTICK_VAL  = 0U;
+        CORTEX_M_SYSTICK_CTRL = CORTEX_M_SYSTICK_CTRL_CLKSOURCE |
+                                CORTEX_M_SYSTICK_CTRL_TICKINT   |
+                                CORTEX_M_SYSTICK_CTRL_ENABLE;
+    }
+}
+
+#define CORTEX_M_AIRCR              (*(volatile uint32_t*)0xE000ED0CU)
+#define CORTEX_M_AIRCR_VECTKEY      (0x05FA0000U)
+#define CORTEX_M_AIRCR_SYSRESETREQ  (1U << 2U)
+
+void sertos_port_stop_scheduler(void)
+{
+    CORTEX_M_SYSTICK_CTRL = 0U;
+
+    /* 1. Semihosting exit: SYS_EXIT (0x18)
+     * For ARMv8-M / Cortex-M33 under QEMU, bkpt 0xAB traps to QEMU semihosting.
+     * r0 = 0x18 (TARGET_SYS_EXIT), r1 = 0x20026 (ADP_Stopped_ApplicationExit)
+     */
+#if defined(__arm__) || defined(__thumb__)
+    register uint32_t r0 __asm__("r0") = 0x18U;
+    register uint32_t r1 __asm__("r1") = 0x20026U;
+    __asm__ volatile (
+        "bkpt 0xAB"
+        :
+        : "r" (r0), "r" (r1)
+        : "memory"
+    );
+#endif
+
+    /* 2. Fallback: Request CPU Reset via AIRCR (VECTKEY | SYSRESETREQ).
+     * When QEMU is launched with -no-reboot, this triggers a clean emulator shutdown.
+     */
+    CORTEX_M_AIRCR = CORTEX_M_AIRCR_VECTKEY | CORTEX_M_AIRCR_SYSRESETREQ;
+
+    while (1) {
+#if defined(__arm__) || defined(__thumb__)
+        __asm__ volatile ("wfi");
+#endif
+    }
 }
 
 void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb)

@@ -9,10 +9,12 @@
     .align 2
     .global PendSV_Handler
     .type PendSV_Handler, %function
+    .global SVC_Handler
+    .type SVC_Handler, %function
     .global sertos_port_start_first_task
     .type sertos_port_start_first_task, %function
 
-sertos_port_start_first_task:
+SVC_Handler:
     /* Load address of currently active TCB */
     ldr     r0, =sertos_current_tcb
     ldr     r1, [r0]
@@ -29,14 +31,20 @@ sertos_port_start_first_task:
     msr     psp, r0
     isb
 
-    /* Switch to unprivileged thread mode using PSP */
-    movs    r0, #3
-    msr     control, r0
+    /* Switch to Privileged Thread mode using PSP */
+    movs    r1, #2
+    msr     control, r1
     isb
 
-    /* Enable interrupts and return to task entry */
+    /* Enable interrupts and return to task entry via EXC_RETURN */
     cpsie   i
     bx      lr
+    .size SVC_Handler, .-SVC_Handler
+
+sertos_port_start_first_task:
+    cpsie   i
+    svc     0
+1:  b       1b
     .size sertos_port_start_first_task, .-sertos_port_start_first_task
 
 PendSV_Handler:

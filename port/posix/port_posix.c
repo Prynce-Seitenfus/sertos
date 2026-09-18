@@ -130,3 +130,7 @@ void sertos_port_task_delete_hook(struct SertosTaskControlBlock* tcb)
 {
     (void)tcb;
 }
+
+void sertos_port_stop_scheduler(void)
+{
+}

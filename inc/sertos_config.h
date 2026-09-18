@@ -20,6 +20,11 @@
 #define SERTOS_CONFIG_MAX_PRIORITIES        (32U)
 
 /**
+ * @brief Maximum concurrent tasks supported by the host simulator port.
+ */
+#define SERTOS_CONFIG_MAX_TASKS             (32U)
+
+/**
  * @brief System tick timer frequency in Hertz (Hz).
  *
  * 1000U corresponds to a 1-millisecond resolution tick interval.
