@@ -1,6 +1,6 @@
 /*
- * port_context.s - ARM Cortex-M33 PendSV Context Switch Assembly Routine
- * Part of SertOS Kernel. Strict GNU Assembler Syntax.
+ * port_context.s - ARM Cortex-M55 PendSV Context Switch Assembly Routine
+ * Part of SertOS Kernel. Strict GNU Assembler Syntax for ARMv8.1-M Mainline.
  */
 
     .syntax unified
@@ -72,12 +72,12 @@ PendSV_Handler:
     ldr     r1, =sertos_current_tcb
     ldr     r2, [r1]
     cmp     r2, #0
-    beq     restore_next_task
+    beq     restore_next_m55_task
 
     /* Save updated top of stack into tcb->stack_ptr (first member of TCB) */
     str     r0, [r2]
 
-restore_next_task:
+restore_next_m55_task:
     /* Perform context switch step: updates states and sertos_current_tcb, returns next TCB in R0 */
     push    {lr}
     bl      sertos_scheduler_perform_switch

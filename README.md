@@ -15,10 +15,14 @@
    - Intrusive circular doubly linked lists for round-robin time-slicing among equal-priority tasks.
 
 3. **Multi-Architecture Hardware Abstraction**:
+   - **ARM Cortex-M55** (ARMv8.1-M Mainline with Helium MVE, double-precision FPU, `PSPLIM` stack limits).
    - **ARM Cortex-M33** (ARMv8-M Mainline with `PSPLIM` hardware stack limit traps and TrustZone).
-   - **ARM Cortex-M4/M7** (ARMv7E-M with lazy floating-point stacking).
+   - **ARM Cortex-M23** (ARMv8-M Baseline with `PSPLIM` stack limit traps).
+   - **ARM Cortex-M7** (ARMv7E-M with double-precision FPU and cache hooks).
+   - **ARM Cortex-M4** (ARMv7E-M with single-precision floating-point stacking).
    - **ARM Cortex-M3** (ARMv7-M Thumb-2).
-   - **ARM Cortex-M0/M0+** (ARMv6-M Thumb-1).
+   - **ARM Cortex-M0+** (ARMv6-M with VTOR vector table relocation).
+   - **ARM Cortex-M0** (ARMv6-M Thumb-1).
    - **RISC-V RV32I** (32-bit machine-mode trap handler).
    - **Native Windows Simulator** (`port/windows/` for Win32 MinGW-w64).
    - **Native POSIX Simulator** (`port/posix/` for Linux/macOS).
@@ -79,9 +83,13 @@ sertos/
     ├── windows/                # Win32 host simulator
     ├── posix/                  # POSIX host simulator
     ├── arm/
-    │   ├── cortex-m33/         # ARMv8-M (PSPLIM hardware stack limits)
-    │   ├── cortex-m4/          # ARMv7E-M (Lazy FPU stacking)
+    │   ├── cortex-m55/         # ARMv8.1-M (Helium MVE + PSPLIM)
+    │   ├── cortex-m33/         # ARMv8-M Mainline (PSPLIM stack limits)
+    │   ├── cortex-m23/         # ARMv8-M Baseline (PSPLIM stack limits)
+    │   ├── cortex-m7/          # ARMv7E-M (Double-Precision FPU)
+    │   ├── cortex-m4/          # ARMv7E-M (Lazy Single-Precision FPU)
     │   ├── cortex-m3/          # ARMv7-M (Thumb-2)
+    │   ├── cortex-m0plus/      # ARMv6-M (VTOR relocation)
     │   └── cortex-m0/          # ARMv6-M (Thumb-1)
     └── riscv/
         └── rv32i/              # RISC-V 32-bit trap handler
@@ -92,10 +100,10 @@ sertos/
 ## Building the Kernel Library
 
 ### Automated Batch Script (`build.bat`)
-The repository provides a unified `build.bat` script supporting both Host simulators (Windows/POSIX) and ARM Cortex targets (Cortex-M0, Cortex-M3, Cortex-M4, Cortex-M33):
+The repository provides a unified `build.bat` script supporting both Host simulators (Windows/POSIX) and all 8 ARM Cortex targets:
 
 ```powershell
-# Build all target libraries (Windows + POSIX + all 4 ARM Cortex targets)
+# Build all target libraries (Windows + POSIX + all 8 ARM Cortex targets)
 .\build.bat all
 
 # Build Windows host library (lib/windows/libsertos_windows.a)
@@ -104,11 +112,12 @@ The repository provides a unified `build.bat` script supporting both Host simula
 # Build POSIX host library (lib/posix/libsertos_posix.a)
 .\build.bat posix
 
-# Build all 4 ARM Cortex libraries (lib/arm/libsertos_cortex_m*.a)
+# Build all 8 ARM Cortex libraries (lib/arm/libsertos_cortex_m*.a)
 .\build.bat arm
 
-# Build a specific ARM target (m0, m3, m4, or m33)
-.\build.bat m33
+# Build a specific ARM target (m0, m0plus, m3, m4, m7, m23, m33, or m55)
+.\build.bat m7
+.\build.bat m55
 ```
 
 ### CMake Alternative

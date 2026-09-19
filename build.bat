@@ -32,6 +32,14 @@ for %%A in ("%~1" "%~2") do (
             set "CHOSEN_TARGET=cortex-m0"
         ) else if /i "%%~A"=="m0" (
             set "CHOSEN_TARGET=cortex-m0"
+        ) else if /i "%%~A"=="cortex-m0plus" (
+            set "CHOSEN_TARGET=cortex-m0plus"
+        ) else if /i "%%~A"=="cortex-m0+" (
+            set "CHOSEN_TARGET=cortex-m0plus"
+        ) else if /i "%%~A"=="m0plus" (
+            set "CHOSEN_TARGET=cortex-m0plus"
+        ) else if /i "%%~A"=="m0+" (
+            set "CHOSEN_TARGET=cortex-m0plus"
         ) else if /i "%%~A"=="cortex-m3" (
             set "CHOSEN_TARGET=cortex-m3"
         ) else if /i "%%~A"=="m3" (
@@ -40,10 +48,22 @@ for %%A in ("%~1" "%~2") do (
             set "CHOSEN_TARGET=cortex-m4"
         ) else if /i "%%~A"=="m4" (
             set "CHOSEN_TARGET=cortex-m4"
+        ) else if /i "%%~A"=="cortex-m7" (
+            set "CHOSEN_TARGET=cortex-m7"
+        ) else if /i "%%~A"=="m7" (
+            set "CHOSEN_TARGET=cortex-m7"
+        ) else if /i "%%~A"=="cortex-m23" (
+            set "CHOSEN_TARGET=cortex-m23"
+        ) else if /i "%%~A"=="m23" (
+            set "CHOSEN_TARGET=cortex-m23"
         ) else if /i "%%~A"=="cortex-m33" (
             set "CHOSEN_TARGET=cortex-m33"
         ) else if /i "%%~A"=="m33" (
             set "CHOSEN_TARGET=cortex-m33"
+        ) else if /i "%%~A"=="cortex-m55" (
+            set "CHOSEN_TARGET=cortex-m55"
+        ) else if /i "%%~A"=="m55" (
+            set "CHOSEN_TARGET=cortex-m55"
         ) else if exist "%%~A\bin\gcc.exe" (
             set "CUSTOM_TOOLCHAIN=%%~A\bin"
         ) else if exist "%%~A\gcc.exe" (
@@ -83,12 +103,20 @@ if "%CHOSEN_TARGET%"=="host" (
     call :build_arm_all
 ) else if "%CHOSEN_TARGET%"=="cortex-m0" (
     call :build_arm_single cortex-m0
+) else if "%CHOSEN_TARGET%"=="cortex-m0plus" (
+    call :build_arm_single cortex-m0plus
 ) else if "%CHOSEN_TARGET%"=="cortex-m3" (
     call :build_arm_single cortex-m3
 ) else if "%CHOSEN_TARGET%"=="cortex-m4" (
     call :build_arm_single cortex-m4
+) else if "%CHOSEN_TARGET%"=="cortex-m7" (
+    call :build_arm_single cortex-m7
+) else if "%CHOSEN_TARGET%"=="cortex-m23" (
+    call :build_arm_single cortex-m23
 ) else if "%CHOSEN_TARGET%"=="cortex-m33" (
     call :build_arm_single cortex-m33
+) else if "%CHOSEN_TARGET%"=="cortex-m55" (
+    call :build_arm_single cortex-m55
 ) else if "%CHOSEN_TARGET%"=="all" (
     call :build_host_target windows
     call :build_host_target posix
@@ -202,7 +230,7 @@ goto :eof
 :: Subroutine: Build All ARM Targets
 :: -----------------------------------------------------------------------------
 :build_arm_all
-for %%T in (cortex-m0 cortex-m3 cortex-m4 cortex-m33) do (
+for %%T in (cortex-m0 cortex-m0plus cortex-m3 cortex-m4 cortex-m7 cortex-m23 cortex-m33 cortex-m55) do (
     call :build_arm_single %%T
 )
 goto :eof
@@ -253,15 +281,27 @@ if not exist "%OBJ_DIR%" mkdir "%OBJ_DIR%"
 if "%ARM_TARGET%"=="cortex-m0" (
     set "ARCH_FLAGS=-mcpu=cortex-m0 -mthumb"
     set "LIB_NAME=libsertos_cortex_m0.a"
+) else if "%ARM_TARGET%"=="cortex-m0plus" (
+    set "ARCH_FLAGS=-mcpu=cortex-m0plus -mthumb"
+    set "LIB_NAME=libsertos_cortex_m0plus.a"
 ) else if "%ARM_TARGET%"=="cortex-m3" (
     set "ARCH_FLAGS=-mcpu=cortex-m3 -mthumb"
     set "LIB_NAME=libsertos_cortex_m3.a"
 ) else if "%ARM_TARGET%"=="cortex-m4" (
     set "ARCH_FLAGS=-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard"
     set "LIB_NAME=libsertos_cortex_m4.a"
+) else if "%ARM_TARGET%"=="cortex-m7" (
+    set "ARCH_FLAGS=-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard"
+    set "LIB_NAME=libsertos_cortex_m7.a"
+) else if "%ARM_TARGET%"=="cortex-m23" (
+    set "ARCH_FLAGS=-mcpu=cortex-m23 -mthumb"
+    set "LIB_NAME=libsertos_cortex_m23.a"
 ) else if "%ARM_TARGET%"=="cortex-m33" (
     set "ARCH_FLAGS=-mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard"
     set "LIB_NAME=libsertos_cortex_m33.a"
+) else if "%ARM_TARGET%"=="cortex-m55" (
+    set "ARCH_FLAGS=-mcpu=cortex-m55 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard"
+    set "LIB_NAME=libsertos_cortex_m55.a"
 )
 
 set "ARM_LIB=%LIB_OUT%\%LIB_NAME%"
@@ -314,17 +354,22 @@ echo   all         Build host (windows) and all ARM Cortex libraries (default)
 echo   host        Build Windows host static library (lib\windows\libsertos_windows.a)
 echo   windows     Build Windows host static library (lib\windows\libsertos_windows.a)
 echo   posix       Build POSIX host static library   (lib\posix\libsertos_posix.a)
-echo   arm         Build all 4 ARM Cortex libraries  (lib\arm\libsertos_cortex_*.a)
+echo   arm         Build all 8 ARM Cortex libraries  (lib\arm\libsertos_cortex_*.a)
 echo   m0          Build Cortex-M0 library           (lib\arm\libsertos_cortex_m0.a)
+echo   m0plus/m0+  Build Cortex-M0+ library          (lib\arm\libsertos_cortex_m0plus.a)
 echo   m3          Build Cortex-M3 library           (lib\arm\libsertos_cortex_m3.a)
 echo   m4          Build Cortex-M4 library           (lib\arm\libsertos_cortex_m4.a)
+echo   m7          Build Cortex-M7 library           (lib\arm\libsertos_cortex_m7.a)
+echo   m23         Build Cortex-M23 library          (lib\arm\libsertos_cortex_m23.a)
 echo   m33         Build Cortex-M33 library          (lib\arm\libsertos_cortex_m33.a)
+echo   m55         Build Cortex-M55 library          (lib\arm\libsertos_cortex_m55.a)
 echo.
 echo Examples:
 echo   build.bat
 echo   build.bat host
 echo   build.bat arm
-echo   build.bat m33
+echo   build.bat m7
+echo   build.bat m55
 echo   build.bat host C:\mingw64\gcc-13.2.0\mingw64\bin
 echo   build.bat arm  C:\arm\13.2.1\bin
 echo.
