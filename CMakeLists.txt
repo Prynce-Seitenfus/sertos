@@ -41,7 +41,7 @@ elseif(SERTOS_PORT STREQUAL "cortex-m3")
     list(APPEND SERTOS_KERNEL_SOURCES port/arm/cortex-m3/port_cpu.c port/arm/cortex-m3/port_context.s)
 elseif(SERTOS_PORT STREQUAL "cortex-m0")
     list(APPEND SERTOS_KERNEL_SOURCES port/arm/cortex-m0/port_cpu.c port/arm/cortex-m0/port_context.s)
-elseif(SERTOS_PORT STREQUAL "rv32i")
+elseif(SERTOS_PORT STREQUAL "rv32i" OR SERTOS_PORT STREQUAL "riscv")
     list(APPEND SERTOS_KERNEL_SOURCES port/riscv/rv32i/port_cpu.c port/riscv/rv32i/port_context.s)
 else()
     message(FATAL_ERROR "Unsupported SERTOS_PORT architecture: ${SERTOS_PORT}")
@@ -76,7 +76,14 @@ target_include_directories(sertos_kernel PUBLIC
     ${SERTOS_DEP_INCLUDES}
 )
 
-set_target_properties(sertos_kernel PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/${SERTOS_PORT}"
-    OUTPUT_NAME "sertos_${SERTOS_PORT}"
-)
+if(SERTOS_PORT STREQUAL "rv32i" OR SERTOS_PORT STREQUAL "riscv")
+    set_target_properties(sertos_kernel PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/riscv"
+        OUTPUT_NAME "sertos_rv32i"
+    )
+else()
+    set_target_properties(sertos_kernel PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/${SERTOS_PORT}"
+        OUTPUT_NAME "sertos_${SERTOS_PORT}"
+    )
+endif()

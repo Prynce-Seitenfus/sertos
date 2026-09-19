@@ -68,6 +68,16 @@ for %%A in ("%~1" "%~2") do (
             set "CHOSEN_TARGET=cortex-m55"
         ) else if /i "%%~A"=="m55" (
             set "CHOSEN_TARGET=cortex-m55"
+        ) else if /i "%%~A"=="riscv" (
+            set "CHOSEN_TARGET=riscv"
+        ) else if /i "%%~A"=="rv32i" (
+            set "CHOSEN_TARGET=rv32i"
+        ) else if /i "%%~A"=="rv32imc" (
+            set "CHOSEN_TARGET=rv32imc"
+        ) else if /i "%%~A"=="rv32imac" (
+            set "CHOSEN_TARGET=rv32imac"
+        ) else if /i "%%~A"=="rv32imafc" (
+            set "CHOSEN_TARGET=rv32imafc"
         ) else if exist "%%~A\bin\gcc.exe" (
             set "CUSTOM_TOOLCHAIN=%%~A\bin"
         ) else if exist "%%~A\gcc.exe" (
@@ -75,6 +85,10 @@ for %%A in ("%~1" "%~2") do (
         ) else if exist "%%~A\bin\arm-none-eabi-gcc.exe" (
             set "CUSTOM_TOOLCHAIN=%%~A\bin"
         ) else if exist "%%~A\arm-none-eabi-gcc.exe" (
+            set "CUSTOM_TOOLCHAIN=%%~A"
+        ) else if exist "%%~A\bin\riscv-none-elf-gcc.exe" (
+            set "CUSTOM_TOOLCHAIN=%%~A\bin"
+        ) else if exist "%%~A\riscv-none-elf-gcc.exe" (
             set "CUSTOM_TOOLCHAIN=%%~A"
         )
     )
@@ -121,10 +135,27 @@ if "%CHOSEN_TARGET%"=="host" (
     call :build_arm_single cortex-m33
 ) else if "%CHOSEN_TARGET%"=="cortex-m55" (
     call :build_arm_single cortex-m55
+) else if "%CHOSEN_TARGET%"=="riscv" (
+    call :build_riscv_single rv32i    rv32i_zicsr    ilp32
+    call :build_riscv_single rv32imc  rv32imc_zicsr  ilp32
+    call :build_riscv_single rv32imac rv32imac_zicsr ilp32
+    call :build_riscv_single rv32imafc rv32imafc_zicsr ilp32f
+) else if "%CHOSEN_TARGET%"=="rv32i" (
+    call :build_riscv_single rv32i    rv32i_zicsr    ilp32
+) else if "%CHOSEN_TARGET%"=="rv32imc" (
+    call :build_riscv_single rv32imc  rv32imc_zicsr  ilp32
+) else if "%CHOSEN_TARGET%"=="rv32imac" (
+    call :build_riscv_single rv32imac rv32imac_zicsr ilp32
+) else if "%CHOSEN_TARGET%"=="rv32imafc" (
+    call :build_riscv_single rv32imafc rv32imafc_zicsr ilp32f
 ) else if "%CHOSEN_TARGET%"=="all" (
     call :build_host_target mingw64
     call :build_host_target linux
     call :build_arm_all
+    call :build_riscv_single rv32i    rv32i_zicsr    ilp32
+    call :build_riscv_single rv32imc  rv32imc_zicsr  ilp32
+    call :build_riscv_single rv32imac rv32imac_zicsr ilp32
+    call :build_riscv_single rv32imafc rv32imafc_zicsr ilp32f
 )
 
 echo.
@@ -363,6 +394,95 @@ if exist "%ARM_SIZE%" (
 goto :eof
 
 :: -----------------------------------------------------------------------------
+:: Subroutine: Build RISC-V Single Target
+:: Usage: call :build_riscv_single <profile> <march> <mabi>
+::   profile = rv32i | rv32imc | rv32imac | rv32imafc
+::   march   = rv32i_zicsr | rv32imc_zicsr | rv32imac_zicsr | rv32imafc_zicsr
+::   mabi    = ilp32 | ilp32f
+:: -----------------------------------------------------------------------------
+:build_riscv_single
+set "RISCV_PROFILE=%~1"
+set "RISCV_MARCH=%~2"
+set "RISCV_MABI=%~3"
+set "RISCV_TOOLCHAIN="
+
+if defined CUSTOM_TOOLCHAIN (
+    if exist "%CUSTOM_TOOLCHAIN%\riscv-none-elf-gcc.exe" set "RISCV_TOOLCHAIN=%CUSTOM_TOOLCHAIN%"
+)
+
+if not defined RISCV_TOOLCHAIN (
+    if exist "C:\toolchains\riscv\13.2.0\bin\riscv-none-elf-gcc.exe" (
+        set "RISCV_TOOLCHAIN=C:\toolchains\riscv\13.2.0\bin"
+    ) else if exist "C:\riscv\13.2.0\bin\riscv-none-elf-gcc.exe" (
+        set "RISCV_TOOLCHAIN=C:\riscv\13.2.0\bin"
+    )
+)
+
+if not defined RISCV_TOOLCHAIN (
+    where riscv-none-elf-gcc.exe >nul 2>nul
+    if not errorlevel 1 (
+        for /f "delims=" %%I in ('where riscv-none-elf-gcc.exe') do (
+            if not defined RISCV_TOOLCHAIN set "RISCV_TOOLCHAIN=%%~dpI"
+        )
+    )
+)
+
+if not defined RISCV_TOOLCHAIN (
+    echo [ERROR] GNU RISC-V Embedded Toolchain not found!
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
+if "%RISCV_TOOLCHAIN:~-1%"=="\" set "RISCV_TOOLCHAIN=%RISCV_TOOLCHAIN:~0,-1%"
+
+set "RISCV_CC=%RISCV_TOOLCHAIN%\riscv-none-elf-gcc.exe"
+set "RISCV_AR=%RISCV_TOOLCHAIN%\riscv-none-elf-ar.exe"
+set "RISCV_SIZE=%RISCV_TOOLCHAIN%\riscv-none-elf-size.exe"
+
+set "LIB_OUT=lib\riscv"
+if not exist "%LIB_OUT%" mkdir "%LIB_OUT%"
+set "OBJ_DIR=build\riscv\%RISCV_PROFILE%"
+if not exist "%OBJ_DIR%" mkdir "%OBJ_DIR%"
+
+set "ARCH_FLAGS=-march=%RISCV_MARCH% -mabi=%RISCV_MABI%"
+set "RISCV_LIB=%LIB_OUT%\libsertos_%RISCV_PROFILE%.a"
+
+echo.
+echo ============================================================
+echo [BUILD] Compiling SertOS for RISC-V %RISCV_MARCH% (%RISCV_MABI%)...
+echo [TOOLCHAIN] %RISCV_TOOLCHAIN%
+echo ============================================================
+
+set "PORT_DIR=port\riscv\rv32i"
+set "PORT_SRCS=%PORT_DIR%\port_cpu.c %PORT_DIR%\port_context.S"
+set "ALL_RISCV_SRCS=%CORE_SRCS% %MODULE_SRCS% %PORT_SRCS%"
+set "OBJS="
+
+for %%S in (%ALL_RISCV_SRCS%) do (
+    set "OBJ_FILE=%OBJ_DIR%\%%~nS.o"
+    set "OBJS=!OBJS! !OBJ_FILE!"
+    "%RISCV_CC%" %ARCH_FLAGS% -O2 -Wall -Wextra -std=c99 -ffunction-sections -fdata-sections %INCLUDES% -c "%%S" -o "!OBJ_FILE!"
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Compilation failed: %%S
+        set "BUILD_FAIL=1"
+        goto :eof
+    )
+)
+
+"%RISCV_AR%" rcs "%RISCV_LIB%" %OBJS%
+if !ERRORLEVEL! neq 0 (
+    echo [ERROR] Failed creating archive %RISCV_LIB%
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
+echo [SUCCESS] Generated: %RISCV_LIB%
+if exist "%RISCV_SIZE%" (
+    "%RISCV_SIZE%" -t "%RISCV_LIB%" | findstr /C:"TOTALS"
+)
+goto :eof
+
+:: -----------------------------------------------------------------------------
 :: Help Menu
 :: -----------------------------------------------------------------------------
 :show_help
@@ -370,34 +490,35 @@ echo.
 echo Usage: build.bat [TARGET] [TOOLCHAIN_PATH]
 echo.
 echo Targets:
-echo   all         Build mingw64 and all ARM Cortex libraries (default)
+echo   all         Build host, ARM Cortex, and all 4 RISC-V libraries (default)
 echo   mingw64     Build MinGW-w64 host static library (lib\mingw64\libsertos_mingw64.a) [alias: windows]
-echo   linux       Build Linux host static library     (lib\linux\libsertos_linux.a) [alias: posix]
+echo   linux       Build Linux host static library     (lib\linux\libsertos_linux.a)   [alias: posix]
 echo   arm         Build all 8 ARM Cortex libraries    (lib\arm\libsertos_cortex_*.a)
-echo   m0          Build Cortex-M0 library           (lib\arm\libsertos_cortex_m0.a)
-echo   m0plus/m0+  Build Cortex-M0+ library          (lib\arm\libsertos_cortex_m0plus.a)
-echo   m3          Build Cortex-M3 library           (lib\arm\libsertos_cortex_m3.a)
-echo   m4          Build Cortex-M4 library           (lib\arm\libsertos_cortex_m4.a)
-echo   m7          Build Cortex-M7 library           (lib\arm\libsertos_cortex_m7.a)
-echo   m23         Build Cortex-M23 library          (lib\arm\libsertos_cortex_m23.a)
-echo   m33         Build Cortex-M33 library          (lib\arm\libsertos_cortex_m33.a)
-echo   m55         Build Cortex-M55 library          (lib\arm\libsertos_cortex_m55.a)
+echo   riscv       Build all 4 RISC-V libraries        (lib\riscv\libsertos_rv32*.a)
+echo   rv32i       Build RISC-V RV32I baseline         (lib\riscv\libsertos_rv32i.a)       ilp32
+echo   rv32imc     Build RISC-V RV32IMC                (lib\riscv\libsertos_rv32imc.a)     ilp32  ^(ESP32-C3, GD32VF103^)
+echo   rv32imac    Build RISC-V RV32IMAC               (lib\riscv\libsertos_rv32imac.a)    ilp32  ^(RP2350, ESP32-C6, FE310^)
+echo   rv32imafc   Build RISC-V RV32IMAFC ^(hard-FPU^)  (lib\riscv\libsertos_rv32imafc.a)  ilp32f ^(ESP32-P4, CH32V307^)
+echo   m0          Build Cortex-M0 library             (lib\arm\libsertos_cortex_m0.a)
+echo   m0plus/m0+  Build Cortex-M0+ library            (lib\arm\libsertos_cortex_m0plus.a)
+echo   m3          Build Cortex-M3 library             (lib\arm\libsertos_cortex_m3.a)
+echo   m4          Build Cortex-M4 library             (lib\arm\libsertos_cortex_m4.a)
+echo   m7          Build Cortex-M7 library             (lib\arm\libsertos_cortex_m7.a)
+echo   m23         Build Cortex-M23 library            (lib\arm\libsertos_cortex_m23.a)
+echo   m33         Build Cortex-M33 library            (lib\arm\libsertos_cortex_m33.a)
+echo   m55         Build Cortex-M55 library            (lib\arm\libsertos_cortex_m55.a)
 echo.
 echo Examples:
 echo   build.bat
-echo   build.bat windows
-echo   build.bat posix
+echo   build.bat mingw64
 echo   build.bat arm
-echo   build.bat m0
-echo   build.bat m0plus
-echo   build.bat m3
+echo   build.bat riscv
+echo   build.bat rv32imac
+echo   build.bat rv32imafc
 echo   build.bat m4
-echo   build.bat m7
-echo   build.bat m23
-echo   build.bat m33
-echo   build.bat m55
-echo   build.bat windows C:\toolchains\mingw64\13.2.0\bin
+echo   build.bat riscv   C:\toolchains\riscv\13.2.0\bin
 echo   build.bat arm     C:\toolchains\arm\13.2.1\bin
 echo.
 popd
 endlocal
+exit /b 0
