@@ -7,7 +7,7 @@ pushd "%SCRIPT_DIR%"
 
 :: -----------------------------------------------------------------------------
 :: Parse Arguments
-:: Syntax: build.bat [host|arm|all|windows|posix|m0|m3|m4|m33] [toolchain_path]
+:: Syntax: build.bat [all|host|windows|posix|arm|m0|m0plus|m3|m4|m7|m23|m33|m55] [toolchain_path]
 :: -----------------------------------------------------------------------------
 set "CHOSEN_TARGET="
 set "CUSTOM_TOOLCHAIN="
@@ -20,10 +20,14 @@ for %%A in ("%~1" "%~2") do (
 
         if /i "%%~A"=="host" (
             set "CHOSEN_TARGET=host"
+        ) else if /i "%%~A"=="mingw64" (
+            set "CHOSEN_TARGET=mingw64"
         ) else if /i "%%~A"=="windows" (
-            set "CHOSEN_TARGET=windows"
+            set "CHOSEN_TARGET=mingw64"
+        ) else if /i "%%~A"=="linux" (
+            set "CHOSEN_TARGET=linux"
         ) else if /i "%%~A"=="posix" (
-            set "CHOSEN_TARGET=posix"
+            set "CHOSEN_TARGET=linux"
         ) else if /i "%%~A"=="arm" (
             set "CHOSEN_TARGET=arm"
         ) else if /i "%%~A"=="all" (
@@ -93,12 +97,12 @@ set "BUILD_FAIL=0"
 :: Execute Target Builds
 :: -----------------------------------------------------------------------------
 if "%CHOSEN_TARGET%"=="host" (
-    call :build_host_target windows
-    call :build_host_target posix
-) else if "%CHOSEN_TARGET%"=="windows" (
-    call :build_host_target windows
-) else if "%CHOSEN_TARGET%"=="posix" (
-    call :build_host_target posix
+    call :build_host_target mingw64
+    call :build_host_target linux
+) else if "%CHOSEN_TARGET%"=="mingw64" (
+    call :build_host_target mingw64
+) else if "%CHOSEN_TARGET%"=="linux" (
+    call :build_host_target linux
 ) else if "%CHOSEN_TARGET%"=="arm" (
     call :build_arm_all
 ) else if "%CHOSEN_TARGET%"=="cortex-m0" (
@@ -118,8 +122,8 @@ if "%CHOSEN_TARGET%"=="host" (
 ) else if "%CHOSEN_TARGET%"=="cortex-m55" (
     call :build_arm_single cortex-m55
 ) else if "%CHOSEN_TARGET%"=="all" (
-    call :build_host_target windows
-    call :build_host_target posix
+    call :build_host_target mingw64
+    call :build_host_target linux
     call :build_arm_all
 )
 
@@ -154,7 +158,9 @@ if defined CUSTOM_TOOLCHAIN (
 )
 
 if not defined HOST_TOOLCHAIN (
-    if exist "C:\mingw64\gcc-13.2.0\mingw64\bin\gcc.exe" (
+    if exist "C:\toolchains\mingw64\13.2.0\bin\gcc.exe" (
+        set "HOST_TOOLCHAIN=C:\toolchains\mingw64\13.2.0\bin"
+    ) else if exist "C:\mingw64\gcc-13.2.0\mingw64\bin\gcc.exe" (
         set "HOST_TOOLCHAIN=C:\mingw64\gcc-13.2.0\mingw64\bin"
     ) else if exist "C:\mingw64\bin\gcc.exe" (
         set "HOST_TOOLCHAIN=C:\mingw64\bin"
@@ -186,7 +192,7 @@ set "HOST_SIZE=%HOST_TOOLCHAIN%\size.exe"
 
 set "LIB_OUT=lib\%HOST_TARGET%"
 if not exist "%LIB_OUT%" mkdir "%LIB_OUT%"
-set "OBJ_DIR=build\host_objs\%HOST_TARGET%"
+set "OBJ_DIR=build\%HOST_TARGET%"
 if not exist "%OBJ_DIR%" mkdir "%OBJ_DIR%"
 
 set "HOST_LIB=%LIB_OUT%\libsertos_%HOST_TARGET%.a"
@@ -197,7 +203,11 @@ echo [BUILD] Compiling SertOS for %HOST_TARGET% host architecture...
 echo [TOOLCHAIN] %HOST_TOOLCHAIN%
 echo ============================================================
 
-set "PORT_SRC=port\%HOST_TARGET%\port_%HOST_TARGET%.c"
+if "%HOST_TARGET%"=="mingw64" (
+    set "PORT_SRC=port\windows\port_windows.c"
+) else (
+    set "PORT_SRC=port\posix\port_posix.c"
+)
 set "SRCS_TO_BUILD=%CORE_SRCS% %MODULE_SRCS% %PORT_SRC%"
 set "OBJS="
 
@@ -218,6 +228,14 @@ if !ERRORLEVEL! neq 0 (
     echo [ERROR] Failed creating archive %HOST_LIB%
     set "BUILD_FAIL=1"
     goto :eof
+)
+
+if "%HOST_TARGET%"=="mingw64" (
+    if not exist "lib\windows" mkdir "lib\windows"
+    copy /y "%HOST_LIB%" "lib\windows\libsertos_windows.a" >nul
+) else if "%HOST_TARGET%"=="linux" (
+    if not exist "lib\posix" mkdir "lib\posix"
+    copy /y "%HOST_LIB%" "lib\posix\libsertos_posix.a" >nul
 )
 
 echo [SUCCESS] Generated: %HOST_LIB%
@@ -247,7 +265,9 @@ if defined CUSTOM_TOOLCHAIN (
 )
 
 if not defined ARM_TOOLCHAIN (
-    if exist "C:\arm\13.2.1\bin\arm-none-eabi-gcc.exe" (
+    if exist "C:\toolchains\arm\13.2.1\bin\arm-none-eabi-gcc.exe" (
+        set "ARM_TOOLCHAIN=C:\toolchains\arm\13.2.1\bin"
+    ) else if exist "C:\arm\13.2.1\bin\arm-none-eabi-gcc.exe" (
         set "ARM_TOOLCHAIN=C:\arm\13.2.1\bin"
     )
 )
@@ -275,7 +295,7 @@ set "ARM_SIZE=%ARM_TOOLCHAIN%\arm-none-eabi-size.exe"
 
 set "LIB_OUT=lib\arm"
 if not exist "%LIB_OUT%" mkdir "%LIB_OUT%"
-set "OBJ_DIR=build\arm_objs\%ARM_TARGET%"
+set "OBJ_DIR=build\arm\%ARM_TARGET%"
 if not exist "%OBJ_DIR%" mkdir "%OBJ_DIR%"
 
 if "%ARM_TARGET%"=="cortex-m0" (
@@ -350,11 +370,10 @@ echo.
 echo Usage: build.bat [TARGET] [TOOLCHAIN_PATH]
 echo.
 echo Targets:
-echo   all         Build host (windows) and all ARM Cortex libraries (default)
-echo   host        Build Windows host static library (lib\windows\libsertos_windows.a)
-echo   windows     Build Windows host static library (lib\windows\libsertos_windows.a)
-echo   posix       Build POSIX host static library   (lib\posix\libsertos_posix.a)
-echo   arm         Build all 8 ARM Cortex libraries  (lib\arm\libsertos_cortex_*.a)
+echo   all         Build mingw64 and all ARM Cortex libraries (default)
+echo   mingw64     Build MinGW-w64 host static library (lib\mingw64\libsertos_mingw64.a) [alias: windows]
+echo   linux       Build Linux host static library     (lib\linux\libsertos_linux.a) [alias: posix]
+echo   arm         Build all 8 ARM Cortex libraries    (lib\arm\libsertos_cortex_*.a)
 echo   m0          Build Cortex-M0 library           (lib\arm\libsertos_cortex_m0.a)
 echo   m0plus/m0+  Build Cortex-M0+ library          (lib\arm\libsertos_cortex_m0plus.a)
 echo   m3          Build Cortex-M3 library           (lib\arm\libsertos_cortex_m3.a)
@@ -366,12 +385,19 @@ echo   m55         Build Cortex-M55 library          (lib\arm\libsertos_cortex_m
 echo.
 echo Examples:
 echo   build.bat
-echo   build.bat host
+echo   build.bat windows
+echo   build.bat posix
 echo   build.bat arm
+echo   build.bat m0
+echo   build.bat m0plus
+echo   build.bat m3
+echo   build.bat m4
 echo   build.bat m7
+echo   build.bat m23
+echo   build.bat m33
 echo   build.bat m55
-echo   build.bat host C:\mingw64\gcc-13.2.0\mingw64\bin
-echo   build.bat arm  C:\arm\13.2.1\bin
+echo   build.bat windows C:\toolchains\mingw64\13.2.0\bin
+echo   build.bat arm     C:\toolchains\arm\13.2.1\bin
 echo.
 popd
 endlocal

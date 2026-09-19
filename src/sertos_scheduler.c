@@ -79,8 +79,12 @@ static void idle_task_entry(void* param)
 {
     (void)param;
     while (true) {
-        /* Idle loop: platform may enter low-power sleep or yield */
+        /* Idle loop: enter low-power sleep on MCU or yield on host simulator */
+#if defined(__arm__) || defined(__thumb__) || defined(__riscv)
+        __asm__ volatile ("wfi");
+#else
         sertos_port_yield();
+#endif
     }
 }
 

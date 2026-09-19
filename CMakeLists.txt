@@ -5,12 +5,12 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Supported port architectures:
-# "windows", "posix", "cortex-m33", "cortex-m4", "cortex-m3", "cortex-m0", "rv32i"
+# "mingw64", "windows", "linux", "posix", "cortex-m33", "cortex-m4", "cortex-m3", "cortex-m0", "rv32i"
 if(NOT DEFINED SERTOS_PORT)
     if(WIN32)
-        set(SERTOS_PORT "windows")
+        set(SERTOS_PORT "mingw64")
     elseif(UNIX)
-        set(SERTOS_PORT "posix")
+        set(SERTOS_PORT "linux")
     else()
         set(SERTOS_PORT "cortex-m4")
     endif()
@@ -29,9 +29,9 @@ set(SERTOS_KERNEL_SOURCES
 )
 
 # Port source selection
-if(SERTOS_PORT STREQUAL "windows")
+if(SERTOS_PORT STREQUAL "mingw64" OR SERTOS_PORT STREQUAL "windows")
     list(APPEND SERTOS_KERNEL_SOURCES port/windows/port_windows.c)
-elseif(SERTOS_PORT STREQUAL "posix")
+elseif(SERTOS_PORT STREQUAL "linux" OR SERTOS_PORT STREQUAL "posix")
     list(APPEND SERTOS_KERNEL_SOURCES port/posix/port_posix.c)
 elseif(SERTOS_PORT STREQUAL "cortex-m33")
     list(APPEND SERTOS_KERNEL_SOURCES port/arm/cortex-m33/port_cpu.c port/arm/cortex-m33/port_context.s)

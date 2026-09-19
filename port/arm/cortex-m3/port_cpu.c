@@ -161,19 +161,7 @@ void sertos_port_stop_scheduler(void)
 {
     CORTEX_M_SYSTICK_CTRL = 0U;
 
-    /* 1. Semihosting exit: SYS_EXIT (0x18) */
-#if defined(__arm__) || defined(__thumb__)
-    register uint32_t r0 __asm__("r0") = 0x18U;
-    register uint32_t r1 __asm__("r1") = 0x20026U;
-    __asm__ volatile (
-        "bkpt 0xAB"
-        :
-        : "r" (r0), "r" (r1)
-        : "memory"
-    );
-#endif
-
-    /* 2. Fallback: Request CPU Reset via AIRCR (VECTKEY | SYSRESETREQ) */
+    /* Request CPU Reset via AIRCR (VECTKEY | SYSRESETREQ) */
     CORTEX_M_AIRCR = CORTEX_M_AIRCR_VECTKEY | CORTEX_M_AIRCR_SYSRESETREQ;
 
     while (1) {

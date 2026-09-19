@@ -103,13 +103,15 @@ sertos/
 The repository provides a unified `build.bat` script supporting both Host simulators (Windows/POSIX) and all 8 ARM Cortex targets:
 
 ```powershell
-# Build all target libraries (Windows + POSIX + all 8 ARM Cortex targets)
+# Build all target libraries (mingw64 + linux + all 8 ARM Cortex targets)
 .\build.bat all
 
-# Build Windows host library (lib/windows/libsertos_windows.a)
+# Build MinGW-w64 host library (lib/mingw64/libsertos_mingw64.a)
+.\build.bat mingw64
 .\build.bat windows
 
-# Build POSIX host library (lib/posix/libsertos_posix.a)
+# Build Linux host library (lib/linux/libsertos_linux.a)
+.\build.bat linux
 .\build.bat posix
 
 # Build all 8 ARM Cortex libraries (lib/arm/libsertos_cortex_m*.a)
