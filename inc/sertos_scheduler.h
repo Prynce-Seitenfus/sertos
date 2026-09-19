@@ -37,6 +37,14 @@ SertosStatus sertos_scheduler_init(void);
 void sertos_scheduler_start(void);
 
 /**
+ * @brief Stops the preemptive multitasking scheduler.
+ *
+ * Terminates multitasking on host simulators (Windows / POSIX) and returns
+ * control from sertos_scheduler_start().
+ */
+void sertos_scheduler_stop(void);
+
+/**
  * @brief Periodic system tick handler.
  *
  * Typically invoked by the hardware timer ISR (e.g. SysTick on ARM Cortex-M)

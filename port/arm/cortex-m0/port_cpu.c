@@ -113,9 +113,30 @@ void sertos_port_exit_critical(uint32_t status)
     }
 }
 
+#define CORTEX_M_SYSTICK_CTRL       (*(volatile uint32_t*)0xE000E010U)
+#define CORTEX_M_SYSTICK_LOAD       (*(volatile uint32_t*)0xE000E014U)
+#define CORTEX_M_SYSTICK_VAL        (*(volatile uint32_t*)0xE000E018U)
+
+#define CORTEX_M_SYSTICK_CTRL_CLKSOURCE (1U << 2U)
+#define CORTEX_M_SYSTICK_CTRL_TICKINT   (1U << 1U)
+#define CORTEX_M_SYSTICK_CTRL_ENABLE    (1U << 0U)
+
+#ifndef SYSTEM_CORE_CLOCK_HZ
+#define SYSTEM_CORE_CLOCK_HZ (25000000U)
+#endif
+
 void sertos_port_tick_init(uint32_t tick_rate_hz)
 {
-    (void)tick_rate_hz;
+    if (tick_rate_hz > 0U) {
+        /* Set PendSV to lowest priority in SHPR3 */
+        *(volatile uint32_t*)0xE000ED20U |= 0x00FF0000U;
+
+        CORTEX_M_SYSTICK_LOAD = (SYSTEM_CORE_CLOCK_HZ / tick_rate_hz) - 1U;
+        CORTEX_M_SYSTICK_VAL  = 0U;
+        CORTEX_M_SYSTICK_CTRL = CORTEX_M_SYSTICK_CTRL_CLKSOURCE |
+                                CORTEX_M_SYSTICK_CTRL_TICKINT   |
+                                CORTEX_M_SYSTICK_CTRL_ENABLE;
+    }
 }
 
 void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb)

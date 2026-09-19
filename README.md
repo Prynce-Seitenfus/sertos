@@ -91,7 +91,28 @@ sertos/
 
 ## Building the Kernel Library
 
-The kernel builds as a freestanding static library (`libsertos_kernel.a`) using CMake:
+### Automated Batch Script (`build.bat`)
+The repository provides a unified `build.bat` script supporting both Host simulators (Windows/POSIX) and ARM Cortex targets (Cortex-M0, Cortex-M3, Cortex-M4, Cortex-M33):
+
+```powershell
+# Build all target libraries (Windows + POSIX + all 4 ARM Cortex targets)
+.\build.bat all
+
+# Build Windows host library (lib/windows/libsertos_windows.a)
+.\build.bat windows
+
+# Build POSIX host library (lib/posix/libsertos_posix.a)
+.\build.bat posix
+
+# Build all 4 ARM Cortex libraries (lib/arm/libsertos_cortex_m*.a)
+.\build.bat arm
+
+# Build a specific ARM target (m0, m3, m4, or m33)
+.\build.bat m33
+```
+
+### CMake Alternative
+The kernel can also be built using CMake:
 
 ```powershell
 # Configure and build library for host simulation

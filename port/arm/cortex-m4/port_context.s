@@ -1,5 +1,5 @@
 /*
- * port_context.s - ARM Cortex-M4 PendSV Context Switch Assembly Routine
+ * port_context.s - ARM Cortex-M4 SVC / PendSV Context Switch Assembly Routine
  * Part of SertOS Kernel. Strict GNU Assembler Syntax.
  */
 
@@ -9,10 +9,12 @@
     .align 2
     .global PendSV_Handler
     .type PendSV_Handler, %function
+    .global SVC_Handler
+    .type SVC_Handler, %function
     .global sertos_port_start_first_task
     .type sertos_port_start_first_task, %function
 
-sertos_port_start_first_task:
+SVC_Handler:
     ldr     r0, =sertos_current_tcb
     ldr     r1, [r0]
     ldr     r0, [r1]               /* r0 = tcb->stack_ptr */
@@ -21,12 +23,18 @@ sertos_port_start_first_task:
     msr     psp, r0                /* Set PSP to hardware exception frame */
     isb
 
-    movs    r0, #3                 /* Unprivileged thread mode using PSP */
-    msr     control, r0
+    movs    r1, #2                 /* Privileged Thread mode using PSP */
+    msr     control, r1
     isb
 
     cpsie   i
     bx      lr
+    .size SVC_Handler, .-SVC_Handler
+
+sertos_port_start_first_task:
+    cpsie   i
+    svc     0
+1:  b       1b
     .size sertos_port_start_first_task, .-sertos_port_start_first_task
 
 PendSV_Handler:

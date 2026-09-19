@@ -76,8 +76,7 @@ target_include_directories(sertos_kernel PUBLIC
     ${SERTOS_DEP_INCLUDES}
 )
 
-target_compile_options(sertos_kernel PRIVATE
-    -Wall
-    -Wextra
-    -pedantic
+set_target_properties(sertos_kernel PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/${SERTOS_PORT}"
+    OUTPUT_NAME "sertos_${SERTOS_PORT}"
 )

@@ -299,6 +299,12 @@ void sertos_scheduler_start(void)
     sertos_port_start_first_task();
 }
 
+void sertos_scheduler_stop(void)
+{
+    s_is_running = false;
+    sertos_port_stop_scheduler();
+}
+
 void sertos_scheduler_tick(void)
 {
     uint32_t crit_status;
