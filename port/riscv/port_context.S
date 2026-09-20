@@ -23,13 +23,7 @@
     .type sertos_port_start_first_task, @function
 
 /* --------------------------------------------------------------------------
- * Compute FRAME_SIZE at assemble time using GAS .ifdef on __riscv_flen.
- * GCC -march=rv32imafc_zicsr passes __riscv_flen=32 as a pre-define only
- * visible to the C preprocessor.  We therefore pass it as a -D flag from
- * build.bat for the .s file as well (see build_riscv_single, ARCH_FLAGS).
- *
- * When GCC assembles .s files it runs them through the C preprocessor first,
- * so #ifdef / #if are fully supported here.
+ * Frame sizing and FPU capability selection
  * -------------------------------------------------------------------------- */
 #if defined(__riscv_flen) && (__riscv_flen > 0)
     #define FRAME_SIZE  256
@@ -56,8 +50,12 @@ sertos_port_start_first_task:
     csrw    mstatus, t1
 
 #if HAS_FPU
-    lw      t0, 248(sp)
-    fscsr   t0
+    /* Ensure FPU is active in hardware before issuing FP instructions */
+    li      t2, (3 << 13)
+    csrs    mstatus, t2
+
+    lw      t2, 248(sp)
+    fscsr   t2
     flw     f0,  120(sp)
     flw     f1,  124(sp)
     flw     f2,  128(sp)
@@ -165,11 +163,15 @@ sertos_riscv_trap_handler:
     csrr    t2, mcause
     bgez    t2, handle_exception
 
-    /* Interrupt path: save mepc / mstatus before any C call */
+    /* Interrupt path: save mepc / mstatus */
     sw      t0, 112(sp)
     sw      t1, 116(sp)
 
 #if HAS_FPU
+    /* Ensure FPU is accessible before read */
+    li      t3, (3 << 13)
+    csrs    mstatus, t3
+
     fsw     f0,  120(sp)
     fsw     f1,  124(sp)
     fsw     f2,  128(sp)
@@ -202,8 +204,8 @@ sertos_riscv_trap_handler:
     fsw     f29, 236(sp)
     fsw     f30, 240(sp)
     fsw     f31, 244(sp)
-    frcsr   t0
-    sw      t0,  248(sp)
+    frcsr   t3
+    sw      t3,  248(sp)
 #endif
 
     li      t3, 0x80000007          /* Machine timer interrupt */
@@ -223,12 +225,16 @@ trap_fault_loop:
     j       trap_fault_loop
 
 handle_ecall:
-    /* Advance mepc past ecall, save state */
+    /* Advance mepc past ecall instruction (+4), save state */
     addi    t0, t0, 4
     sw      t0, 112(sp)
     sw      t1, 116(sp)
 
 #if HAS_FPU
+    /* Ensure FPU is accessible before read */
+    li      t3, (3 << 13)
+    csrs    mstatus, t3
+
     fsw     f0,  120(sp)
     fsw     f1,  124(sp)
     fsw     f2,  128(sp)
@@ -261,8 +267,8 @@ handle_ecall:
     fsw     f29, 236(sp)
     fsw     f30, 240(sp)
     fsw     f31, 244(sp)
-    frcsr   t0
-    sw      t0,  248(sp)
+    frcsr   t3
+    sw      t3,  248(sp)
 #endif
 
 do_switch:
@@ -284,8 +290,12 @@ restore_riscv_task:
     csrw    mstatus, t1
 
 #if HAS_FPU
-    lw      t0, 248(sp)
-    fscsr   t0
+    /* Ensure FPU is active in hardware before issuing FP instructions */
+    li      t2, (3 << 13)
+    csrs    mstatus, t2
+
+    lw      t2, 248(sp)
+    fscsr   t2
     flw     f0,  120(sp)
     flw     f1,  124(sp)
     flw     f2,  128(sp)
@@ -354,3 +364,4 @@ restore_riscv_task:
 
     .size sertos_riscv_trap_handler, .-sertos_riscv_trap_handler
     .end
+	

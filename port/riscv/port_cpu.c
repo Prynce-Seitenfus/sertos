@@ -95,7 +95,7 @@ typedef struct RiscV32StackFrame {
 
 static volatile uint32_t s_critical_nesting = 0U;
 static volatile uint32_t s_in_isr = 0U;
-static uint32_t s_tick_cycles = 10000U;
+static uint32_t s_tick_cycles = 0U;
 
 extern void sertos_riscv_trap_handler(void);
 

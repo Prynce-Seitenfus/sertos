@@ -56,7 +56,7 @@
 /**
  * @brief Maximum string length of a task diagnostic name including null terminator.
  */
-#define SERTOS_CONFIG_MAX_TASK_NAME_LEN     (16U)
+#define SERTOS_CONFIG_MAX_TASK_NAME_LEN     (32U)
 
 /**
  * @brief Enable or disable round-robin time-slicing among tasks of equal priority.

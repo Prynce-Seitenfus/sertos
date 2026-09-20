@@ -152,6 +152,13 @@ void sertos_port_task_delete_hook(struct SertosTaskControlBlock* tcb)
     (void)tcb;
 }
 
+void SysTick_Handler(void)
+{
+    if (sertos_scheduler_is_running()) {
+        sertos_scheduler_tick();
+    }
+}
+
 #define CORTEX_M_SYSTICK_CTRL       (*(volatile uint32_t*)0xE000E010U)
 #define CORTEX_M_AIRCR              (*(volatile uint32_t*)0xE000ED0CU)
 #define CORTEX_M_AIRCR_VECTKEY      (0x05FA0000U)

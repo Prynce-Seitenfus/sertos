@@ -453,7 +453,7 @@ echo [BUILD] Compiling SertOS for RISC-V %RISCV_MARCH% (%RISCV_MABI%)...
 echo [TOOLCHAIN] %RISCV_TOOLCHAIN%
 echo ============================================================
 
-set "PORT_DIR=port\riscv\rv32i"
+set "PORT_DIR=port\riscv"
 set "PORT_SRCS=%PORT_DIR%\port_cpu.c %PORT_DIR%\port_context.S"
 set "ALL_RISCV_SRCS=%CORE_SRCS% %MODULE_SRCS% %PORT_SRCS%"
 set "OBJS="
