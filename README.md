@@ -110,7 +110,7 @@ The repository provides a unified `build.bat` script supporting both Host simula
 .\build.bat mingw64
 .\build.bat windows
 
-# Build Linux host library (lib/linux/libsertos_linux.a)
+# Build POSIX host library (lib/posix/libsertos_posix.a)
 .\build.bat linux
 .\build.bat posix
 

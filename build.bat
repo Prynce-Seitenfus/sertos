@@ -24,6 +24,8 @@ for %%A in ("%~1" "%~2") do (
             set "CHOSEN_TARGET=mingw64"
         ) else if /i "%%~A"=="windows" (
             set "CHOSEN_TARGET=mingw64"
+        ) else if /i "%%~A"=="win" (
+            set "CHOSEN_TARGET=mingw64"
         ) else if /i "%%~A"=="linux" (
             set "CHOSEN_TARGET=linux"
         ) else if /i "%%~A"=="posix" (
@@ -112,11 +114,11 @@ set "BUILD_FAIL=0"
 :: -----------------------------------------------------------------------------
 if "%CHOSEN_TARGET%"=="host" (
     call :build_host_target mingw64
-    call :build_host_target linux
+    call :build_linux_wsl
 ) else if "%CHOSEN_TARGET%"=="mingw64" (
     call :build_host_target mingw64
 ) else if "%CHOSEN_TARGET%"=="linux" (
-    call :build_host_target linux
+    call :build_linux_wsl
 ) else if "%CHOSEN_TARGET%"=="arm" (
     call :build_arm_all
 ) else if "%CHOSEN_TARGET%"=="cortex-m0" (
@@ -150,7 +152,7 @@ if "%CHOSEN_TARGET%"=="host" (
     call :build_riscv_single rv32imafc rv32imafc_zicsr ilp32f
 ) else if "%CHOSEN_TARGET%"=="all" (
     call :build_host_target mingw64
-    call :build_host_target linux
+    call :build_linux_wsl
     call :build_arm_all
     call :build_riscv_single rv32i    rv32i_zicsr    ilp32
     call :build_riscv_single rv32imc  rv32imc_zicsr  ilp32
@@ -178,7 +180,35 @@ if "!BUILD_FAIL!"=="0" (
 )
 
 :: -----------------------------------------------------------------------------
-:: Subroutine: Build Host Target (Windows or POSIX)
+:: Subroutine: Build Native Linux Target Through WSL
+:: -----------------------------------------------------------------------------
+:build_linux_wsl
+where wsl.exe >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] WSL was not found. Install and initialize WSL to build the linux target.
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
+echo.
+echo ============================================================
+echo [BUILD] Compiling SertOS for native Linux through WSL...
+echo [SOURCE] %SCRIPT_DIR%
+echo [TOOLCHAIN] WSL native Linux (gcc, ar, size)
+echo ============================================================
+
+wsl.exe --cd "%SCRIPT_DIR%" -- bash ./build.sh
+if errorlevel 1 (
+    echo [ERROR] Native Linux build failed in WSL.
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
+echo [SUCCESS] Native Linux build completed.
+goto :eof
+
+:: -----------------------------------------------------------------------------
+:: Subroutine: Build MinGW Windows Host Target
 :: -----------------------------------------------------------------------------
 :build_host_target
 set "HOST_TARGET=%~1"
@@ -221,6 +251,42 @@ set "HOST_CC=%HOST_TOOLCHAIN%\gcc.exe"
 set "HOST_AR=%HOST_TOOLCHAIN%\ar.exe"
 set "HOST_SIZE=%HOST_TOOLCHAIN%\size.exe"
 
+if not exist "%HOST_AR%" (
+    echo [ERROR] Invalid MinGW toolchain: ar.exe was not found in "%HOST_TOOLCHAIN%".
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+if not exist "%HOST_SIZE%" (
+    echo [ERROR] Invalid MinGW toolchain: size.exe was not found in "%HOST_TOOLCHAIN%".
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
+set "PATH=%HOST_TOOLCHAIN%;%PATH%"
+
+if not exist "%HOST_TOOLCHAIN%\..\libexec\gcc" (
+    echo [ERROR] Invalid MinGW toolchain: GCC runtime directory was not found.
+    echo         Expected under "%HOST_TOOLCHAIN%\..\libexec\gcc".
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+if not exist "%HOST_TOOLCHAIN%\libwinpthread-1.dll" (
+    echo [ERROR] Invalid MinGW toolchain: libwinpthread-1.dll was not found in "%HOST_TOOLCHAIN%".
+    set "BUILD_FAIL=1"
+    goto :eof
+) 
+if not exist "%HOST_TOOLCHAIN%\..\lib\gcc" (
+    echo [ERROR] Invalid MinGW toolchain: GCC library directory was not found.
+    echo         Expected under "%HOST_TOOLCHAIN%\..\lib\gcc".
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+if not exist "%HOST_CC%" (
+    echo [ERROR] Invalid MinGW toolchain: gcc.exe is not executable.
+    set "BUILD_FAIL=1"
+    goto :eof
+)
+
 set "LIB_OUT=lib\%HOST_TARGET%"
 if not exist "%LIB_OUT%" mkdir "%LIB_OUT%"
 set "OBJ_DIR=build\%HOST_TARGET%"
@@ -234,11 +300,7 @@ echo [BUILD] Compiling SertOS for %HOST_TARGET% host architecture...
 echo [TOOLCHAIN] %HOST_TOOLCHAIN%
 echo ============================================================
 
-if "%HOST_TARGET%"=="mingw64" (
-    set "PORT_SRC=port\windows\port_windows.c"
-) else (
-    set "PORT_SRC=port\posix\port_posix.c"
-)
+set "PORT_SRC=port\windows\port_windows.c"
 set "SRCS_TO_BUILD=%CORE_SRCS% %MODULE_SRCS% %PORT_SRC%"
 set "OBJS="
 
@@ -246,9 +308,10 @@ for %%S in (%SRCS_TO_BUILD%) do (
     set "OBJ_FILE=%OBJ_DIR%\%%~nS.o"
     set "OBJS=!OBJS! "!OBJ_FILE!""
 
+    echo [COMPILE] %%S
     "%HOST_CC%" -O2 -Wall -Wextra -pedantic -std=c99 %INCLUDES% -c "%%S" -o "!OBJ_FILE!"
     if !ERRORLEVEL! neq 0 (
-        echo [ERROR] Failed compiling %%S
+        echo [ERROR] Compiler failed while compiling %%S. See the diagnostic above.
         set "BUILD_FAIL=1"
         goto :eof
     )
@@ -261,17 +324,9 @@ if !ERRORLEVEL! neq 0 (
     goto :eof
 )
 
-if "%HOST_TARGET%"=="mingw64" (
-    if not exist "lib\windows" mkdir "lib\windows"
-    copy /y "%HOST_LIB%" "lib\windows\libsertos_windows.a" >nul
-) else if "%HOST_TARGET%"=="linux" (
-    if not exist "lib\posix" mkdir "lib\posix"
-    copy /y "%HOST_LIB%" "lib\posix\libsertos_posix.a" >nul
-)
-
 echo [SUCCESS] Generated: %HOST_LIB%
 if exist "%HOST_SIZE%" (
-    "%HOST_SIZE%" -t "%HOST_LIB%" | findstr /C:"TOTALS"
+    call :print_archive_size "%HOST_SIZE%" "%HOST_LIB%"
 )
 goto :eof
 
@@ -389,7 +444,7 @@ if !ERRORLEVEL! neq 0 (
 
 echo [SUCCESS] Generated: %ARM_LIB%
 if exist "%ARM_SIZE%" (
-    "%ARM_SIZE%" -t "%ARM_LIB%" | findstr /C:"TOTALS"
+    call :print_archive_size "%ARM_SIZE%" "%ARM_LIB%"
 )
 goto :eof
 
@@ -478,7 +533,21 @@ if !ERRORLEVEL! neq 0 (
 
 echo [SUCCESS] Generated: %RISCV_LIB%
 if exist "%RISCV_SIZE%" (
-    "%RISCV_SIZE%" -t "%RISCV_LIB%" | findstr /C:"TOTALS"
+    call :print_archive_size "%RISCV_SIZE%" "%RISCV_LIB%"
+)
+goto :eof
+
+:: -----------------------------------------------------------------------------
+:: Subroutine: Print Aggregate Static Library Size
+:: -----------------------------------------------------------------------------
+:print_archive_size
+set "SIZE_TOOL=%~1"
+set "SIZE_ARCHIVE=%~2"
+for /f "tokens=1-5" %%A in ('call "%SIZE_TOOL%" -t "%SIZE_ARCHIVE%" ^| findstr /C:"TOTALS"') do (
+    echo .text %%A
+    echo .data %%B
+    echo .bss  %%C
+    echo Total %%D
 )
 goto :eof
 
@@ -491,8 +560,8 @@ echo Usage: build.bat [TARGET] [TOOLCHAIN_PATH]
 echo.
 echo Targets:
 echo   all         Build host, ARM Cortex, and all 4 RISC-V libraries (default)
-echo   mingw64     Build MinGW-w64 host static library (lib\mingw64\libsertos_mingw64.a) [alias: windows]
-echo   linux       Build Linux host static library     (lib\linux\libsertos_linux.a)   [alias: posix]
+echo   mingw64     Build MinGW-w64 host static library (lib\mingw64\libsertos_mingw64.a) [aliases: windows, win]
+echo   linux       Build POSIX host static library    (lib\posix\libsertos_posix.a)   [alias: posix]
 echo   arm         Build all 8 ARM Cortex libraries    (lib\arm\libsertos_cortex_*.a)
 echo   riscv       Build all 4 RISC-V libraries        (lib\riscv\libsertos_rv32*.a)
 echo   rv32i       Build RISC-V RV32I baseline         (lib\riscv\libsertos_rv32i.a)       ilp32
