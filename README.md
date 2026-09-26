@@ -124,6 +124,9 @@ The repository provides a unified `build.bat` script supporting both Host simula
 # Build a specific ARM target (m0, m0plus, m3, m4, m7, m23, m33, or m55)
 .\build.bat m7
 .\build.bat m55
+
+# Remove generated build and library outputs before rebuilding a target
+.\build.bat --clean m33
 ```
 
 ### CMake Alternative

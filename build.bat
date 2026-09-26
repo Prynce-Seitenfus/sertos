@@ -7,13 +7,16 @@ pushd "%SCRIPT_DIR%"
 
 :: -----------------------------------------------------------------------------
 :: Parse Arguments
-:: Syntax: build.bat [all|host|windows|posix|arm|m0|m0plus|m3|m4|m7|m23|m33|m55] [toolchain_path]
+:: Syntax: build.bat [-c|--clean] [TARGET] [toolchain_path]
 :: -----------------------------------------------------------------------------
 set "CHOSEN_TARGET="
 set "CUSTOM_TOOLCHAIN="
+set "CLEAN_BUILD=0"
 
-for %%A in ("%~1" "%~2") do (
+for %%A in ("%~1" "%~2" "%~3") do (
     if not "%%~A"=="" (
+        if /i "%%~A"=="-c" set "CLEAN_BUILD=1"
+        if /i "%%~A"=="--clean" set "CLEAN_BUILD=1"
         if /i "%%~A"=="-h" goto :show_help
         if /i "%%~A"=="--help" goto :show_help
         if /i "%%~A"=="/?" goto :show_help
@@ -98,6 +101,15 @@ for %%A in ("%~1" "%~2") do (
 
 if not defined CHOSEN_TARGET (
     set "CHOSEN_TARGET=all"
+)
+
+if "%CLEAN_BUILD%"=="1" (
+    call :clean_outputs
+    if errorlevel 1 (
+        popd
+        endlocal
+        exit /b 1
+    )
 )
 
 :: -----------------------------------------------------------------------------
@@ -221,12 +233,6 @@ if defined CUSTOM_TOOLCHAIN (
 if not defined HOST_TOOLCHAIN (
     if exist "C:\toolchains\mingw64\13.2.0\bin\gcc.exe" (
         set "HOST_TOOLCHAIN=C:\toolchains\mingw64\13.2.0\bin"
-    ) else if exist "C:\mingw64\gcc-13.2.0\mingw64\bin\gcc.exe" (
-        set "HOST_TOOLCHAIN=C:\mingw64\gcc-13.2.0\mingw64\bin"
-    ) else if exist "C:\mingw64\bin\gcc.exe" (
-        set "HOST_TOOLCHAIN=C:\mingw64\bin"
-    ) else if exist "C:\msys64\mingw64\bin\gcc.exe" (
-        set "HOST_TOOLCHAIN=C:\msys64\mingw64\bin"
     )
 )
 
@@ -353,8 +359,6 @@ if defined CUSTOM_TOOLCHAIN (
 if not defined ARM_TOOLCHAIN (
     if exist "C:\toolchains\arm\13.2.1\bin\arm-none-eabi-gcc.exe" (
         set "ARM_TOOLCHAIN=C:\toolchains\arm\13.2.1\bin"
-    ) else if exist "C:\arm\13.2.1\bin\arm-none-eabi-gcc.exe" (
-        set "ARM_TOOLCHAIN=C:\arm\13.2.1\bin"
     )
 )
 
@@ -468,8 +472,6 @@ if defined CUSTOM_TOOLCHAIN (
 if not defined RISCV_TOOLCHAIN (
     if exist "C:\toolchains\riscv\13.2.0\bin\riscv-none-elf-gcc.exe" (
         set "RISCV_TOOLCHAIN=C:\toolchains\riscv\13.2.0\bin"
-    ) else if exist "C:\riscv\13.2.0\bin\riscv-none-elf-gcc.exe" (
-        set "RISCV_TOOLCHAIN=C:\riscv\13.2.0\bin"
     )
 )
 
@@ -556,7 +558,10 @@ goto :eof
 :: -----------------------------------------------------------------------------
 :show_help
 echo.
-echo Usage: build.bat [TARGET] [TOOLCHAIN_PATH]
+echo Usage: build.bat [-c^|--clean] [TARGET] [TOOLCHAIN_PATH]
+echo.
+echo Options:
+echo   -c, --clean  Remove generated build and library outputs before building
 echo.
 echo Targets:
 echo   all         Build host, ARM Cortex, and all 4 RISC-V libraries (default)
@@ -585,9 +590,28 @@ echo   build.bat riscv
 echo   build.bat rv32imac
 echo   build.bat rv32imafc
 echo   build.bat m4
+echo   build.bat --clean m33
 echo   build.bat riscv   C:\toolchains\riscv\13.2.0\bin
 echo   build.bat arm     C:\toolchains\arm\13.2.1\bin
 echo.
 popd
 endlocal
+exit /b 0
+
+:clean_outputs
+echo [CLEAN] Removing generated build and library outputs...
+if exist "build" (
+    rmdir /s /q "build"
+    if exist "build" (
+        echo [ERROR] Could not remove the build directory.
+        exit /b 1
+    )
+)
+if exist "lib" (
+    rmdir /s /q "lib"
+    if exist "lib" (
+        echo [ERROR] Could not remove the library output directory.
+        exit /b 1
+    )
+)
 exit /b 0
