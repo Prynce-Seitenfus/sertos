@@ -7,6 +7,7 @@
  */
 
 #include "sertos_port.h"
+#include "sertos_port_weak.h"
 #include "sertos_task.h"
 #include "sertos_scheduler.h"
 #include <string.h>
@@ -98,6 +99,11 @@ static volatile uint32_t s_in_isr = 0U;
 static uint32_t s_tick_cycles = 0U;
 
 extern void sertos_riscv_trap_handler(void);
+
+SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
+{
+    return 10000000U;
+}
 
 void* sertos_port_stack_init(void* stack_top, void* stack_limit, SertosTaskFunction entry, void* param)
 {
@@ -198,7 +204,7 @@ void sertos_port_riscv_timer_handler(void)
 #endif
 }
 
-void sertos_port_tick_init(uint32_t tick_rate_hz)
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
 #if defined(__riscv)
     uintptr_t trap_addr = (uintptr_t)sertos_riscv_trap_handler;
@@ -209,7 +215,13 @@ void sertos_port_tick_init(uint32_t tick_rate_hz)
     __asm__ volatile ("csrs mstatus, %0" :: "r" (MSTATUS_FS_INITIAL) : "memory");
 #endif
 
-    if (tick_rate_hz > 0U) {
+    uint32_t timer_clock_hz = sertos_port_tick_clock_hz();
+
+    if ((tick_rate_hz == 0U) || (timer_clock_hz < tick_rate_hz)) {
+        return SERTOS_STATUS_ERROR_INVALID_PARAM;
+    }
+
+    {
         volatile uint32_t* const mtimecmp_l = (volatile uint32_t*)0x02004000U;
         volatile uint32_t* const mtimecmp_h = (volatile uint32_t*)0x02004004U;
         volatile uint32_t* const mtime_l    = (volatile uint32_t*)0x0200BFF8U;
@@ -219,8 +231,7 @@ void sertos_port_tick_init(uint32_t tick_rate_hz)
         uint32_t now_l;
         uint64_t next;
 
-        /* QEMU virt CLINT clock is 10 MHz */
-        s_tick_cycles = 10000000U / tick_rate_hz;
+        s_tick_cycles = timer_clock_hz / tick_rate_hz;
 
         do {
             now_h = *mtime_h;
@@ -236,8 +247,10 @@ void sertos_port_tick_init(uint32_t tick_rate_hz)
         /* Enable Machine Timer Interrupt (MTIE = bit 7 in mie) */
         __asm__ volatile ("csrs mie, %0" :: "r" (1U << 7U) : "memory");
     }
+    return SERTOS_STATUS_OK;
 #else
     (void)tick_rate_hz;
+    return SERTOS_STATUS_OK;
 #endif
 }
 

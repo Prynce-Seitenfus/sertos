@@ -7,8 +7,10 @@
  */
 
 #include "sertos_port.h"
+#include "sertos_port_weak.h"
 #include "sertos_task.h"
 #include "sertos_scheduler.h"
+#include "../cortex_m_systick.h"
 #include <string.h>
 
 /**
@@ -142,22 +144,30 @@ void sertos_port_exit_critical(uint32_t status)
     }
 }
 
-#ifndef SYSTEM_CORE_CLOCK_HZ
-#define SYSTEM_CORE_CLOCK_HZ (25000000U)
-#endif
-
-void sertos_port_tick_init(uint32_t tick_rate_hz)
+SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
 {
-    if (tick_rate_hz > 0U) {
-        /* Set PendSV to lowest priority (0xFF) in SHPR3 */
-        *(volatile uint32_t*)0xE000ED20U |= 0x00FF0000U;
+    return 25000000U;
+}
 
-        CORTEX_M_SYSTICK_LOAD = (SYSTEM_CORE_CLOCK_HZ / tick_rate_hz) - 1U;
-        CORTEX_M_SYSTICK_VAL  = 0U;
-        CORTEX_M_SYSTICK_CTRL = CORTEX_M_SYSTICK_CTRL_CLKSOURCE |
-                                CORTEX_M_SYSTICK_CTRL_TICKINT   |
-                                CORTEX_M_SYSTICK_CTRL_ENABLE;
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
+{
+    uint32_t reload_value;
+
+    if (!cortex_m_systick(sertos_port_tick_clock_hz(),
+                          tick_rate_hz,
+                          &reload_value)) {
+        return SERTOS_STATUS_ERROR_INVALID_PARAM;
     }
+
+    /* Set PendSV to lowest priority (0xFF) in SHPR3 */
+    *(volatile uint32_t*)0xE000ED20U |= 0x00FF0000U;
+
+    CORTEX_M_SYSTICK_LOAD = reload_value;
+    CORTEX_M_SYSTICK_VAL  = 0U;
+    CORTEX_M_SYSTICK_CTRL = CORTEX_M_SYSTICK_CTRL_CLKSOURCE |
+                            CORTEX_M_SYSTICK_CTRL_TICKINT   |
+                            CORTEX_M_SYSTICK_CTRL_ENABLE;
+    return SERTOS_STATUS_OK;
 }
 
 #define CORTEX_M_AIRCR              (*(volatile uint32_t*)0xE000ED0CU)

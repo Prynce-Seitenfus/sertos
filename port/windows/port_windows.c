@@ -7,6 +7,7 @@
  */
 
 #include "sertos_port.h"
+#include "sertos_port_weak.h"
 #include "sertos_task.h"
 #include "sertos_scheduler.h"
 #include "sertos_config.h"
@@ -15,6 +16,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
+{
+    return 0U;
+}
 
 /**
  * @brief Simulated architectural exception stack frame (AAPCS-compatible 16-word layout).
@@ -311,9 +317,9 @@ void sertos_port_exit_critical(uint32_t status)
     }
 }
 
-void sertos_port_tick_init(uint32_t tick_rate_hz)
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
-    (void)tick_rate_hz;
+    return (tick_rate_hz > 0U) ? SERTOS_STATUS_OK : SERTOS_STATUS_ERROR_INVALID_PARAM;
 }
 
 void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb)

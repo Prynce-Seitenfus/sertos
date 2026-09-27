@@ -54,11 +54,26 @@ uint32_t sertos_port_enter_critical(void);
 void sertos_port_exit_critical(uint32_t status);
 
 /**
- * @brief Configures the hardware periodic tick timer (e.g. SysTick) for the specified rate.
+ * @brief Returns the input clock frequency used by the port's tick timer.
+ *
+ * The weak port default preserves the port's existing clock assumption.
+ * Applications may provide a strong override when their timer clock differs
+ * from that default. For Cortex-M SysTick using the processor clock source,
+ * this is typically SystemCoreClock. It is not necessarily the CPU clock on
+ * other architectures.
+ *
+ * @return Tick timer input frequency in Hertz, or zero when the port does not
+ *         use a peripheral clock value.
+ */
+uint32_t sertos_port_tick_clock_hz(void);
+
+/**
+ * @brief Configures the hardware periodic tick timer (e.g. SysTick).
  *
  * @param tick_rate_hz Desired tick rate in Hertz (e.g. 1000 for 1 ms tick).
+ * @return SERTOS_STATUS_OK on success, or an error for an invalid timer configuration.
  */
-void sertos_port_tick_init(uint32_t tick_rate_hz);
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz);
 
 /**
  * @brief Optional port hook executed upon task creation.

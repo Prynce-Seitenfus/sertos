@@ -99,6 +99,36 @@ sertos/
 
 ## Building the Kernel Library
 
+### Tick Timer Clock
+
+The Cortex-M ports use SysTick with the processor clock as its input. Their
+default tick clock remains 25 MHz for compatibility. If the target runs at a
+different frequency, provide a strong definition of the port clock hook in the
+application. The hook is called when the scheduler starts, so initialize the
+target clock first:
+
+```c
+#include "sertos_port.h"
+#include "stm32h5xx_hal.h"
+
+uint32_t sertos_port_tick_clock_hz(void)
+{
+    return SystemCoreClock;
+}
+```
+
+The returned frequency must describe the tick timer's input clock, not
+necessarily the CPU clock on every architecture. The RISC-V QEMU virt port
+defaults to its 10 MHz CLINT timer input. Host simulator ports do not use the
+ARM-only `cortex_m_systick()` helper; no empty non-ARM implementation is
+provided because those ports do not have SysTick hardware. Build the port
+library once with this hook-based implementation; each
+application can then provide its own strong override at final link time without
+rebuilding the library for every clock frequency. `sertos_scheduler_start()`
+returns only if the port rejects its tick timer configuration or the active
+port supports stopping the scheduler; applications may treat any return as a
+startup failure on bare-metal targets.
+
 ### Automated Batch Script (`build.bat`)
 The repository provides a unified `build.bat` script supporting both Host simulators (Windows/POSIX) and all 8 ARM Cortex targets:
 

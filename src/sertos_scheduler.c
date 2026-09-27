@@ -296,7 +296,10 @@ void sertos_scheduler_reschedule(void)
 void sertos_scheduler_start(void)
 {
     s_is_running = true;
-    sertos_port_tick_init(SERTOS_CONFIG_TICK_RATE_HZ);
+    if (sertos_port_tick_init(SERTOS_CONFIG_TICK_RATE_HZ) != SERTOS_STATUS_OK) {
+        s_is_running = false;
+        return;
+    }
 
     (void)sertos_scheduler_perform_switch();
 
@@ -516,4 +519,3 @@ SertosStatus sertos_scheduler_wait_list_block(LinkedList* wait_list, SertosTick 
 
     return SERTOS_STATUS_OK;
 }
-

@@ -12,6 +12,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "sertos_port.h"
+#include "sertos_port_weak.h"
 #include "sertos_task.h"
 #include "sertos_scheduler.h"
 #include "sertos_config.h"
@@ -21,6 +22,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
+{
+    return 0U;
+}
 
 /**
  * @brief Simulated architectural exception stack frame (AAPCS-compatible 16-word layout).
@@ -335,9 +341,9 @@ void sertos_port_exit_critical(uint32_t status)
     }
 }
 
-void sertos_port_tick_init(uint32_t tick_rate_hz)
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
-    (void)tick_rate_hz;
+    return (tick_rate_hz > 0U) ? SERTOS_STATUS_OK : SERTOS_STATUS_ERROR_INVALID_PARAM;
 }
 
 void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb)
@@ -417,6 +423,7 @@ void sertos_port_stop_scheduler(void)
 
 /* Provide dummy definitions when compiling on Win32 without POSIX */
 #include "sertos_port.h"
+#include "sertos_port_weak.h"
 #include <stddef.h>
 
 void* sertos_port_stack_init(void* stack_top, void* stack_limit, SertosTaskFunction entry, void* param)
@@ -432,7 +439,11 @@ void sertos_port_start_first_task(void) {}
 void sertos_port_yield(void) {}
 uint32_t sertos_port_enter_critical(void) { return 0U; }
 void sertos_port_exit_critical(uint32_t status) { (void)status; }
-void sertos_port_tick_init(uint32_t tick_rate_hz) { (void)tick_rate_hz; }
+SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void) { return 0U; }
+SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
+{
+    return (tick_rate_hz > 0U) ? SERTOS_STATUS_OK : SERTOS_STATUS_ERROR_INVALID_PARAM;
+}
 void sertos_port_task_create_hook(struct SertosTaskControlBlock* tcb) { (void)tcb; }
 void sertos_port_task_delete_hook(struct SertosTaskControlBlock* tcb) { (void)tcb; }
 void sertos_port_stop_scheduler(void) {}
