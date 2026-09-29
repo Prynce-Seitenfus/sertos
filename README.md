@@ -102,10 +102,10 @@ sertos/
 SertOS provides a dual configuration model so applications can customize kernel behavior either at runtime (without rebuilding static libraries) or at compile time (via application header overrides):
 
 ### 1. Dynamic Runtime Configuration (`SertosConfig`)
-The scheduler can be initialized with custom parameters directly from user code via [`sertos_scheduler_init_with_config`](inc/sertos_scheduler.h):
+The scheduler can be initialized with custom parameters directly from user code via [`sertos_scheduler_init_with_config`](inc/sertos_scheduler.h). Applications can simply include the single primary umbrella header [`sertos.h`](inc/sertos.h):
 
 ```c
-#include "sertos_scheduler.h"
+#include "sertos.h"
 
 static uint8_t s_custom_idle_stack[1024] __attribute__((aligned(8)));
 
