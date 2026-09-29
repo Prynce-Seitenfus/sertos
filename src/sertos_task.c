@@ -15,30 +15,6 @@
 #include <string.h>
 
 /**
- * @brief Copies task diagnostic name string with guaranteed null termination.
- *
- * @param dest Destination char array.
- * @param src Source string pointer.
- * @param max_len Maximum buffer length.
- */
-static void copy_task_name(char* dest, const char* src, size_t max_len)
-{
-    size_t i = 0U;
-
-    if ((dest == NULL) || (max_len == 0U)) {
-        return;
-    }
-
-    if (src != NULL) {
-        while ((i < (max_len - 1U)) && (src[i] != '\0')) {
-            dest[i] = src[i];
-            i++;
-        }
-    }
-    dest[i] = '\0';
-}
-
-/**
  * @brief Validates common task configuration parameters.
  *
  * @param config Pointer to task configuration structure.
@@ -104,6 +80,7 @@ static void init_tcb_and_stack(SertosTaskControlBlock* tcb,
     tcb->delay_ticks = 0U;
     tcb->entry_func = config->entry_func;
     tcb->param = config->param;
+    tcb->name = (config->name != NULL) ? config->name : "Task";
     tcb->state_node.next = NULL;
     tcb->state_node.prev = NULL;
     tcb->event_node.next = NULL;
@@ -113,7 +90,6 @@ static void init_tcb_and_stack(SertosTaskControlBlock* tcb,
     tcb->magic = SERTOS_TASK_MAGIC_WORD;
     tcb->port_context = NULL;
 
-    copy_task_name(tcb->name, config->name, sizeof(tcb->name));
     sertos_port_task_create_hook(tcb);
 }
 
@@ -337,7 +313,7 @@ const char* sertos_task_get_name(SertosTaskHandle handle)
     if ((handle == NULL) || (handle->magic != SERTOS_TASK_MAGIC_WORD)) {
         return "Unknown";
     }
-    return handle->name;
+    return (handle->name != NULL) ? handle->name : "Unknown";
 }
 
 SertosPriority sertos_task_get_priority(SertosTaskHandle handle)

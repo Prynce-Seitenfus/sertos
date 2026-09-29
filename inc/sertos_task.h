@@ -60,7 +60,7 @@ typedef struct SertosTaskControlBlock {
     SertosTick delay_ticks;                 /**< Ticks remaining if blocked on a time delay. */
     SertosTaskFunction entry_func;          /**< Entry point function pointer. */
     void* param;                            /**< Argument passed to entry function. */
-    char name[SERTOS_TASK_NAME_MAX_LEN];    /**< Descriptive name for debugging. */
+    const char* name;                       /**< Descriptive task name pointer for debugging. */
     LinkedListNode state_node;              /**< Intrusive list node for ready/delay/suspend queues. */
     LinkedListNode event_node;              /**< Intrusive list node for IPC blocking wait-lists. */
     struct LinkedList* wait_list;           /**< Pointer to IPC wait list if blocked, or NULL. */

@@ -16,11 +16,21 @@
 #include "sertos_task.h"
 
 /**
- * @brief Initializes the core scheduler data structures.
+ * @brief Initializes the core scheduler data structures with runtime configuration parameters.
  *
  * Sets up ready lists, the blocked delay list, suspended list, initializes tick
- * counters, and creates the system Idle Task. Must be called prior to
- * any task creation or scheduler invocation.
+ * counters, runtime hooks, and creates the system Idle Task according to config.
+ * Must be called prior to any task creation or scheduler invocation.
+ *
+ * @param[in] config Pointer to SertosConfig structure, or NULL to use default configuration.
+ * @return SERTOS_STATUS_OK on success, or error status code.
+ */
+SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config);
+
+/**
+ * @brief Initializes the core scheduler data structures using default configuration.
+ *
+ * Equivalent to calling sertos_scheduler_init_with_config(NULL).
  *
  * @return SERTOS_STATUS_OK on success, or error status code.
  */
@@ -98,6 +108,20 @@ bool sertos_scheduler_is_running(void);
  * @return Monotonic tick count.
  */
 SertosTick sertos_scheduler_get_tick_count(void);
+
+/**
+ * @brief Returns the active tick rate frequency in Hertz configured at initialization.
+ *
+ * @return Tick rate in Hz.
+ */
+uint32_t sertos_scheduler_get_tick_rate_hz(void);
+
+/**
+ * @brief Queries whether round-robin time slicing is enabled in the scheduler.
+ *
+ * @return true if time slicing is active, false otherwise.
+ */
+bool sertos_scheduler_is_time_slicing_enabled(void);
 
 /**
  * @brief Blocks the currently running task for a specified duration in ticks.

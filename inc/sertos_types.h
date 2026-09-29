@@ -67,4 +67,19 @@ struct SertosTaskControlBlock;
  */
 typedef struct SertosTaskControlBlock* SertosTaskHandle;
 
+/**
+ * @brief Runtime kernel scheduler configuration parameters.
+ *
+ * Enables dynamic customization of the scheduler without requiring
+ * recompilation of precompiled static kernel libraries.
+ */
+typedef struct SertosConfig {
+    uint32_t tick_rate_hz;              /**< Tick rate in Hz (e.g. 1000U for 1ms). If 0, uses default SERTOS_CONFIG_TICK_RATE_HZ. */
+    bool enable_time_slicing;           /**< True to enable round-robin time slicing, false for cooperative scheduling. */
+    void* idle_task_stack;              /**< Optional caller-supplied static buffer for Idle task stack (NULL for internal buffer). */
+    size_t idle_task_stack_size;        /**< Size in bytes of idle_task_stack (must be >= SERTOS_CONFIG_MINIMAL_STACK_SIZE if supplied). */
+    void (*tick_hook)(void);            /**< Optional user callback invoked monotonically on each scheduler tick (or NULL). */
+    void (*idle_hook)(void);            /**< Optional user callback invoked in the Idle task loop (or NULL). */
+} SertosConfig;
+
 #endif /* SERTOS_TYPES_H */

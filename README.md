@@ -97,6 +97,52 @@ sertos/
 
 ---
 
+## Kernel Configuration & Customization
+
+SertOS provides a dual configuration model so applications can customize kernel behavior either at runtime (without rebuilding static libraries) or at compile time (via application header overrides):
+
+### 1. Dynamic Runtime Configuration (`SertosConfig`)
+The scheduler can be initialized with custom parameters directly from user code via [`sertos_scheduler_init_with_config`](inc/sertos_scheduler.h):
+
+```c
+#include "sertos_scheduler.h"
+
+static uint8_t s_custom_idle_stack[1024] __attribute__((aligned(8)));
+
+void custom_tick_hook(void)
+{
+    /* User logic executed monotonically on each timer tick */
+}
+
+void app_init(void)
+{
+    const SertosConfig cfg = {
+        .tick_rate_hz        = 500U,                  /* 500 Hz = 2 ms tick resolution */
+        .enable_time_slicing = true,                  /* Enable round-robin time slicing */
+        .idle_task_stack     = s_custom_idle_stack,   /* Custom static Idle stack buffer */
+        .idle_task_stack_size= sizeof(s_custom_idle_stack),
+        .tick_hook           = custom_tick_hook,      /* Optional tick callback */
+        .idle_hook           = NULL                   /* Optional idle loop callback */
+    };
+
+    (void)sertos_scheduler_init_with_config(&cfg);
+}
+```
+
+Calling `sertos_scheduler_init()` remains supported as a zero-overhead convenience wrapper that applies default configuration parameters.
+
+### 2. Header-Based Customization (`sertos_app_config.h`)
+When building SertOS directly as a CMake submodule or from source, you can define `sertos_app_config.h` in your project's include path to override default `#ifndef` parameters without modifying repository files:
+
+```c
+/* sertos_app_config.h */
+#define SERTOS_CONFIG_TICK_RATE_HZ          (500U)
+#define SERTOS_CONFIG_TIME_SLICING          (0U)
+#define SERTOS_CONFIG_IDLE_TASK_STACK_SIZE  (1024U)
+```
+
+---
+
 ## Building the Kernel Library
 
 ### Tick Timer Clock

@@ -65,7 +65,27 @@ static bool s_reschedule_pending = false;
 static atomic_size_t s_system_ticks;
 
 /**
- * @brief Static allocation storage for system Idle Task.
+ * @brief Active tick rate in Hertz (zero-initialized in .bss, configured during scheduler init).
+ */
+static uint32_t s_tick_rate_hz = 0U;
+
+/**
+ * @brief Dynamic round-robin time-slicing enablement flag (zero-initialized in .bss).
+ */
+static bool s_time_slicing_enabled = false;
+
+/**
+ * @brief Optional user tick hook callback.
+ */
+static void (*s_tick_hook)(void) = NULL;
+
+/**
+ * @brief Optional user idle hook callback.
+ */
+static void (*s_idle_hook)(void) = NULL;
+
+/**
+ * @brief Static allocation storage for default system Idle Task.
  */
 static SertosTaskControlBlock s_idle_tcb;
 static uint8_t s_idle_stack[SERTOS_CONFIG_IDLE_TASK_STACK_SIZE] __attribute__((aligned(SERTOS_CONFIG_STACK_ALIGNMENT_BYTES)));
@@ -79,6 +99,9 @@ static void idle_task_entry(void* param)
 {
     (void)param;
     while (true) {
+        if (s_idle_hook != NULL) {
+            s_idle_hook();
+        }
         /* Idle loop: enter low-power sleep on MCU or yield on host simulator */
 #if defined(__arm__) || defined(__thumb__) || defined(__riscv)
         __asm__ volatile ("wfi");
@@ -133,10 +156,9 @@ static bool process_delayed_tasks(void)
  */
 static void process_time_slicing(void)
 {
-#if (SERTOS_CONFIG_TIME_SLICING != 0U)
     LinkedList* current_queue;
 
-    if (sertos_current_tcb == NULL) {
+    if (!s_time_slicing_enabled || (sertos_current_tcb == NULL)) {
         return;
     }
 
@@ -145,10 +167,9 @@ static void process_time_slicing(void)
         linked_list_remove_direct(current_queue, &sertos_current_tcb->state_node);
         linked_list_insert_tail_direct(current_queue, &sertos_current_tcb->state_node);
     }
-#endif
 }
 
-SertosStatus sertos_scheduler_init(void)
+SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config)
 {
     size_t i;
     SertosTaskConfig idle_cfg;
@@ -173,15 +194,41 @@ SertosStatus sertos_scheduler_init(void)
     s_reschedule_pending = false;
     atomic_init_size_t(&s_system_ticks, 0U);
 
+    if (config != NULL) {
+        s_tick_rate_hz = (config->tick_rate_hz > 0U) ? config->tick_rate_hz : SERTOS_CONFIG_TICK_RATE_HZ;
+        s_time_slicing_enabled = config->enable_time_slicing;
+        s_tick_hook = config->tick_hook;
+        s_idle_hook = config->idle_hook;
+
+        if ((config->idle_task_stack != NULL) &&
+            (config->idle_task_stack_size >= SERTOS_CONFIG_MINIMAL_STACK_SIZE)) {
+            idle_cfg.stack_buffer = config->idle_task_stack;
+            idle_cfg.stack_size = config->idle_task_stack_size;
+        } else {
+            idle_cfg.stack_buffer = s_idle_stack;
+            idle_cfg.stack_size = sizeof(s_idle_stack);
+        }
+    } else {
+        s_tick_rate_hz = SERTOS_CONFIG_TICK_RATE_HZ;
+        s_time_slicing_enabled = (SERTOS_CONFIG_TIME_SLICING != 0U);
+        s_tick_hook = NULL;
+        s_idle_hook = NULL;
+        idle_cfg.stack_buffer = s_idle_stack;
+        idle_cfg.stack_size = sizeof(s_idle_stack);
+    }
+
     idle_cfg.name = "Idle";
     idle_cfg.entry_func = idle_task_entry;
     idle_cfg.param = NULL;
     idle_cfg.priority = 0U;
-    idle_cfg.stack_buffer = s_idle_stack;
-    idle_cfg.stack_size = sizeof(s_idle_stack);
 
     status = sertos_task_create_static(&idle_cfg, &s_idle_tcb, &idle_handle);
     return status;
+}
+
+SertosStatus sertos_scheduler_init(void)
+{
+    return sertos_scheduler_init_with_config(NULL);
 }
 
 SertosStatus sertos_scheduler_add_ready(SertosTaskControlBlock* tcb)
@@ -296,7 +343,7 @@ void sertos_scheduler_reschedule(void)
 void sertos_scheduler_start(void)
 {
     s_is_running = true;
-    if (sertos_port_tick_init(SERTOS_CONFIG_TICK_RATE_HZ) != SERTOS_STATUS_OK) {
+    if (sertos_port_tick_init(s_tick_rate_hz) != SERTOS_STATUS_OK) {
         s_is_running = false;
         return;
     }
@@ -324,9 +371,13 @@ void sertos_scheduler_tick(void)
     process_time_slicing();
     sertos_timer_tick();
 
+    if (s_tick_hook != NULL) {
+        s_tick_hook();
+    }
+
     sertos_port_exit_critical(crit_status);
 
-    if (need_reschedule || (SERTOS_CONFIG_TIME_SLICING != 0U)) {
+    if (need_reschedule || s_time_slicing_enabled) {
         sertos_scheduler_switch_context();
     }
 }
@@ -384,6 +435,16 @@ bool sertos_scheduler_is_running(void)
 SertosTick sertos_scheduler_get_tick_count(void)
 {
     return (SertosTick)atomic_load_acquire(&s_system_ticks);
+}
+
+uint32_t sertos_scheduler_get_tick_rate_hz(void)
+{
+    return (s_tick_rate_hz > 0U) ? s_tick_rate_hz : SERTOS_CONFIG_TICK_RATE_HZ;
+}
+
+bool sertos_scheduler_is_time_slicing_enabled(void)
+{
+    return s_time_slicing_enabled;
 }
 
 SertosStatus sertos_scheduler_delay(SertosTick ticks)
