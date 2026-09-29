@@ -124,12 +124,44 @@ uint32_t sertos_scheduler_get_tick_rate_hz(void);
 bool sertos_scheduler_is_time_slicing_enabled(void);
 
 /**
+ * @brief Converts a time duration in milliseconds to scheduler ticks.
+ *
+ * Uses ceiling rounding to ensure a non-zero millisecond value resolves
+ * to at least 1 tick regardless of tick rate frequency.
+ *
+ * @param[in] ms Time in milliseconds.
+ * @return Number of scheduler ticks.
+ */
+#define SERTOS_MS_TO_TICKS(ms) \
+    ((SertosTick)((((uint64_t)(ms) * (uint64_t)sertos_scheduler_get_tick_rate_hz()) + 999ULL) / 1000ULL))
+
+/**
+ * @brief Converts a duration in scheduler ticks to milliseconds.
+ *
+ * @param[in] ticks Number of ticks.
+ * @return Time in milliseconds.
+ */
+#define SERTOS_TICKS_TO_MS(ticks) \
+    ((uint32_t)(((uint64_t)(ticks) * 1000ULL) / (uint64_t)sertos_scheduler_get_tick_rate_hz()))
+
+/**
  * @brief Blocks the currently running task for a specified duration in ticks.
  *
  * @param[in] ticks Number of ticks to remain blocked. If ticks is 0, yields execution slice.
  * @return SERTOS_STATUS_OK on success, or error status code.
  */
 SertosStatus sertos_scheduler_delay(SertosTick ticks);
+
+/**
+ * @brief Blocks the currently running task for a specified duration in milliseconds.
+ *
+ * Converts milliseconds to ticks using ceiling rounding and invokes sertos_scheduler_delay.
+ * If ms is 0, yields the execution slice.
+ *
+ * @param[in] ms Number of milliseconds to remain blocked.
+ * @return SERTOS_STATUS_OK on success, or error status code.
+ */
+SertosStatus sertos_scheduler_delay_ms(uint32_t ms);
 
 /* --- Internal Kernel Scheduler Primitives --- */
 

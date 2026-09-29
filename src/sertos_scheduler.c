@@ -471,6 +471,16 @@ SertosStatus sertos_scheduler_delay(SertosTick ticks)
     return SERTOS_STATUS_OK;
 }
 
+SertosStatus sertos_scheduler_delay_ms(uint32_t ms)
+{
+    if (ms == 0U) {
+        sertos_scheduler_yield();
+        return SERTOS_STATUS_OK;
+    }
+
+    return sertos_scheduler_delay(SERTOS_MS_TO_TICKS(ms));
+}
+
 SertosTaskControlBlock* sertos_scheduler_get_current_tcb(void)
 {
     return sertos_current_tcb;
