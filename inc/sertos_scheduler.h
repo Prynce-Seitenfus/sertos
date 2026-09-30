@@ -163,6 +163,28 @@ SertosStatus sertos_scheduler_delay(SertosTick ticks);
  */
 SertosStatus sertos_scheduler_delay_ms(uint32_t ms);
 
+/**
+ * @brief Blocks the currently running task until an absolute periodic deadline.
+ *
+ * Provides jitter-free periodic scheduling: the block duration is measured
+ * relative to the previous wake time rather than the moment of the call, so
+ * cumulative execution time does not cause the period to drift. The caller
+ * seeds @p last_wake_time once with sertos_scheduler_get_tick_count() before
+ * the loop; the function advances it by @p period on every invocation.
+ *
+ * All tick comparisons use modular unsigned arithmetic and are therefore
+ * wrap-safe. If the task overran its period (the deadline has already
+ * elapsed), the function realigns the next deadline and yields without
+ * blocking so the loop body runs again promptly.
+ *
+ * @param[in,out] last_wake_time Pointer to the caller's last wake tick; updated in place.
+ * @param[in]     period         Cycle period in ticks. Must be non-zero.
+ * @return SERTOS_STATUS_OK on success, SERTOS_STATUS_ERROR_NULL_PTR if
+ *         last_wake_time is NULL, or SERTOS_STATUS_ERROR_INVALID_PARAM if
+ *         period is 0.
+ */
+SertosStatus sertos_scheduler_delay_until(SertosTick* last_wake_time, SertosTick period);
+
 /* --- Internal Kernel Scheduler Primitives --- */
 
 /**

@@ -481,6 +481,32 @@ SertosStatus sertos_scheduler_delay_ms(uint32_t ms)
     return sertos_scheduler_delay(SERTOS_MS_TO_TICKS(ms));
 }
 
+SertosStatus sertos_scheduler_delay_until(SertosTick* last_wake_time, SertosTick period)
+{
+    SertosTick elapsed;
+    SertosStatus status;
+
+    if (last_wake_time == NULL) {
+        return SERTOS_STATUS_ERROR_NULL_PTR;
+    }
+
+    if (period == 0U) {
+        return SERTOS_STATUS_ERROR_INVALID_PARAM;
+    }
+
+    elapsed = sertos_scheduler_get_tick_count() - *last_wake_time;
+    *last_wake_time += period;
+
+    if (elapsed < period) {
+        status = sertos_scheduler_delay(period - elapsed);
+    } else {
+        sertos_scheduler_yield();
+        status = SERTOS_STATUS_OK;
+    }
+
+    return status;
+}
+
 SertosTaskControlBlock* sertos_scheduler_get_current_tcb(void)
 {
     return sertos_current_tcb;
