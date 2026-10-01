@@ -42,6 +42,14 @@ typedef uint8_t SertosPriority;
 typedef uint32_t SertosTick;
 
 /**
+ * @brief Cumulative run-time counter representation for runtime statistics.
+ *
+ * Widened to 64 bits so that accumulation of a fast free-running 32-bit CPU
+ * cycle counter does not overflow during long uptimes.
+ */
+typedef uint64_t SertosRunCount;
+
+/**
  * @brief Special timeout constants.
  */
 #define SERTOS_NO_WAIT       ((SertosTick)0U)
@@ -80,6 +88,7 @@ typedef struct SertosConfig {
     size_t idle_task_stack_size;        /**< Size in bytes of idle_task_stack (must be >= SERTOS_CONFIG_MINIMAL_STACK_SIZE if supplied). */
     void (*tick_hook)(void);            /**< Optional user callback invoked monotonically on each scheduler tick (or NULL). */
     void (*idle_hook)(void);            /**< Optional user callback invoked in the Idle task loop (or NULL). */
+    bool enable_runtime_stats;          /**< True to enable per-task runtime statistics accounting on each context switch (default false). */
 } SertosConfig;
 
 #endif /* SERTOS_TYPES_H */

@@ -138,6 +138,45 @@ SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
     return 25000000U;
 }
 
+#ifndef CORTEX_M_DEMCR
+#define CORTEX_M_DEMCR              (*(volatile uint32_t*)0xE000EDFCU)
+#endif
+#define CORTEX_M_DEMCR_TRCENA       (1U << 24U)
+#define CORTEX_M_DWT_CTRL           (*(volatile uint32_t*)0xE0001000U)
+#define CORTEX_M_DWT_CTRL_CYCCNTENA (1U << 0U)
+#define CORTEX_M_DWT_CYCCNT         (*(volatile uint32_t*)0xE0001004U)
+
+/* True when the DWT cycle counter is present and advancing. */
+static bool s_runtime_dwt_ok = false;
+
+SERTOS_PORT_WEAK uint32_t sertos_port_runtime_counter(void)
+{
+    if (s_runtime_dwt_ok) {
+        return CORTEX_M_DWT_CYCCNT;
+    }
+
+    /* Fallback for cores/emulators lacking a functional DWT cycle counter. */
+    return (uint32_t)sertos_scheduler_get_tick_count();
+}
+
+SERTOS_PORT_WEAK void sertos_port_runtime_counter_init(void)
+{
+    uint32_t start;
+    volatile uint32_t spin;
+
+    CORTEX_M_DEMCR |= CORTEX_M_DEMCR_TRCENA;
+    CORTEX_M_DWT_CYCCNT = 0U;
+    CORTEX_M_DWT_CTRL |= CORTEX_M_DWT_CTRL_CYCCNTENA;
+
+    start = CORTEX_M_DWT_CYCCNT;
+    for (spin = 0U; spin < 8U; spin++) {
+        /* Spin so the cycle counter can advance on real hardware. */
+    }
+
+    /* If CYCCNT never moved, DWT is absent (e.g. some QEMU models); use ticks. */
+    s_runtime_dwt_ok = (CORTEX_M_DWT_CYCCNT != start);
+}
+
 SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
     uint32_t reload_value;

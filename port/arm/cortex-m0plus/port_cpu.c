@@ -133,6 +133,18 @@ SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
     return 25000000U;
 }
 
+SERTOS_PORT_WEAK uint32_t sertos_port_runtime_counter(void)
+{
+    /* Cortex-M0+ lacks the DWT cycle counter; derive a coarse counter from the
+       system tick. Integrators SHOULD override this with a spare hardware timer
+       for meaningful CPU-time resolution. */
+    return (uint32_t)sertos_scheduler_get_tick_count();
+}
+
+SERTOS_PORT_WEAK void sertos_port_runtime_counter_init(void)
+{
+}
+
 SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
     uint32_t reload_value;

@@ -4,6 +4,7 @@ set -eu
 core_sources=(
     src/sertos_task.c
     src/sertos_scheduler.c
+    src/sertos_stats.c
     src/sertos_sem.c
     src/sertos_mutex.c
     src/sertos_queue.c

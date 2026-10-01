@@ -115,7 +115,7 @@ if "%CLEAN_BUILD%"=="1" (
 :: -----------------------------------------------------------------------------
 :: Common Paths, Directories, and Source Sets
 :: -----------------------------------------------------------------------------
-set "CORE_SRCS=src\sertos_task.c src\sertos_scheduler.c src\sertos_sem.c src\sertos_mutex.c src\sertos_queue.c src\sertos_timer.c"
+set "CORE_SRCS=src\sertos_task.c src\sertos_scheduler.c src\sertos_stats.c src\sertos_sem.c src\sertos_mutex.c src\sertos_queue.c src\sertos_timer.c"
 set "MODULE_SRCS=modules\bitmap\bitmap.c modules\crc\crc.c modules\fsm\fsm.c modules\linked_list\linked_list.c modules\memory_pool\memory_pool.c modules\ring_buffer\ring_buffer.c"
 set "INCLUDES=-Iinc -Iport -Imodules\atomic -Imodules\ring_buffer -Imodules\memory_pool -Imodules\linked_list -Imodules\bitmap -Imodules\crc -Imodules\fsm"
 

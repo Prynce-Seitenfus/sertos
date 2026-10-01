@@ -230,6 +230,55 @@ void sertos_scheduler_set_current_tcb(SertosTaskControlBlock* tcb);
 SertosTaskControlBlock* sertos_scheduler_select_next_task(void);
 
 /**
+ * @brief Visitor callback type for iterating all tasks known to the scheduler.
+ *
+ * @param[in] tcb Pointer to a task control block.
+ * @param[in] ctx Opaque caller context forwarded from sertos_scheduler_visit_all_tasks.
+ */
+typedef void (*SertosTaskVisitor)(SertosTaskControlBlock* tcb, void* ctx);
+
+/**
+ * @brief Invokes a visitor for every task tracked by the scheduler.
+ *
+ * Walks the global task registry under a single critical section. Every live
+ * task is visited exactly once via its registry_node membership, regardless of
+ * whether it is ready, delayed, suspended, or blocked on an IPC wait-list. The
+ * visitor MUST NOT call kernel APIs that re-enter the scheduler or invoke user
+ * code.
+ *
+ * @param[in] visit Visitor callback (ignored if NULL).
+ * @param[in] ctx   Opaque context passed to the visitor.
+ */
+void sertos_scheduler_visit_all_tasks(SertosTaskVisitor visit, void* ctx);
+
+/**
+ * @brief Links a task into the global task registry.
+ *
+ * Intended for internal use by the task-creation routines. Must be called with
+ * scheduler interrupts masked (inside a critical section).
+ *
+ * @param[in] tcb Task control block to register (ignored if NULL).
+ */
+void sertos_scheduler_register_task(SertosTaskControlBlock* tcb);
+
+/**
+ * @brief Unlinks a task from the global task registry.
+ *
+ * Intended for internal use by the task-deletion routine. Must be called with
+ * scheduler interrupts masked (inside a critical section).
+ *
+ * @param[in] tcb Task control block to unregister (ignored if NULL).
+ */
+void sertos_scheduler_unregister_task(SertosTaskControlBlock* tcb);
+
+/**
+ * @brief Returns the control block of the system Idle Task.
+ *
+ * @return Pointer to the Idle Task TCB.
+ */
+SertosTaskControlBlock* sertos_scheduler_get_idle_tcb(void);
+
+/**
  * @brief Currently executing task control block pointer.
  *
  * Exported with external linkage for direct single-cycle dereference

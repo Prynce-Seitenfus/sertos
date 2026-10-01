@@ -94,4 +94,29 @@ void sertos_port_task_delete_hook(struct SertosTaskControlBlock* tcb);
  */
 void sertos_port_stop_scheduler(void);
 
+/**
+ * @brief Returns a free-running high-resolution run-time counter value.
+ *
+ * Provides the time base for the kernel runtime-statistics subsystem. The value
+ * must increase monotonically (modulo 2^32) and should tick substantially faster
+ * than the scheduler tick (typically 10x-100x) for meaningful CPU-time
+ * resolution. Each port supplies a default (weak on cross-compiled targets so
+ * it can be overridden without a rebuild; strong on the host simulator), e.g.
+ * DWT CYCCNT on Cortex-M, mcycle on RISC-V, QueryPerformanceCounter on Windows;
+ * integrators SHOULD override it with a dedicated hardware timer when higher
+ * resolution is needed.
+ *
+ * @return Current 32-bit run-time counter sample.
+ */
+uint32_t sertos_port_runtime_counter(void);
+
+/**
+ * @brief Optional port hook that initializes the run-time counter hardware.
+ *
+ * Invoked once from sertos_scheduler_start() before the first task runs. The
+ * weak default is a no-op; ports that require peripheral enabling (e.g. the
+ * Cortex-M DWT cycle counter) override it.
+ */
+void sertos_port_runtime_counter_init(void);
+
 #endif /* SERTOS_PORT_H */

@@ -22,6 +22,21 @@ SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
     return 0U;
 }
 
+uint32_t sertos_port_runtime_counter(void)
+{
+    LARGE_INTEGER counter;
+
+    if (QueryPerformanceCounter(&counter)) {
+        return (uint32_t)(counter.QuadPart & 0xFFFFFFFFLL);
+    }
+
+    return (uint32_t)GetTickCount();
+}
+
+void sertos_port_runtime_counter_init(void)
+{
+}
+
 /**
  * @brief Simulated architectural exception stack frame (AAPCS-compatible 16-word layout).
  */

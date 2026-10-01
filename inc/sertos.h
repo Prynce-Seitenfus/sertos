@@ -25,6 +25,9 @@ extern "C" {
 /* Scheduler control and tick functions */
 #include "sertos_scheduler.h"
 
+/* Runtime kernel statistics and telemetry */
+#include "sertos_stats.h"
+
 /* Mutual exclusion synchronization primitive (PIP-supported) */
 #include "sertos_mutex.h"
 

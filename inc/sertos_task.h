@@ -67,6 +67,10 @@ typedef struct SertosTaskControlBlock {
     bool is_statically_allocated;           /**< True if buffers were caller-provided; false if from memory_pool. */
     uint32_t magic;                         /**< Canary word (SERTOS_TASK_MAGIC_WORD) for integrity verification. */
     void* port_context;                     /**< Target architecture or simulator port context descriptor. */
+    SertosRunCount run_time_total;          /**< Accumulated run-time counter units spent in the RUNNING state. */
+    uint32_t run_time_last_entry;           /**< Run-time counter sample captured when the task was last switched in. */
+    uint32_t switch_in_count;               /**< Number of times the task has been scheduled in (context switched to). */
+    LinkedListNode registry_node;           /**< Intrusive list node linking every live task into the global registry. */
 } SertosTaskControlBlock;
 
 /**

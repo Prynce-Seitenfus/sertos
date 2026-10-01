@@ -28,6 +28,21 @@ SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
     return 0U;
 }
 
+uint32_t sertos_port_runtime_counter(void)
+{
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+        uint64_t ns = ((uint64_t)ts.tv_sec * 1000000000ULL) + (uint64_t)ts.tv_nsec;
+        return (uint32_t)(ns & 0xFFFFFFFFULL);
+    }
+
+    return 0U;
+}
+
+void sertos_port_runtime_counter_init(void)
+{
+}
 /**
  * @brief Simulated architectural exception stack frame (AAPCS-compatible 16-word layout).
  */
@@ -440,6 +455,8 @@ void sertos_port_yield(void) {}
 uint32_t sertos_port_enter_critical(void) { return 0U; }
 void sertos_port_exit_critical(uint32_t status) { (void)status; }
 SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void) { return 0U; }
+uint32_t sertos_port_runtime_counter(void) { return 0U; }
+void sertos_port_runtime_counter_init(void) {}
 SertosStatus sertos_port_tick_init(uint32_t tick_rate_hz)
 {
     return (tick_rate_hz > 0U) ? SERTOS_STATUS_OK : SERTOS_STATUS_ERROR_INVALID_PARAM;

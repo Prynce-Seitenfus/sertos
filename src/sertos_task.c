@@ -89,6 +89,11 @@ static void init_tcb_and_stack(SertosTaskControlBlock* tcb,
     tcb->is_statically_allocated = is_static;
     tcb->magic = SERTOS_TASK_MAGIC_WORD;
     tcb->port_context = NULL;
+    tcb->run_time_total = 0U;
+    tcb->run_time_last_entry = 0U;
+    tcb->switch_in_count = 0U;
+    tcb->registry_node.next = NULL;
+    tcb->registry_node.prev = NULL;
 
     sertos_port_task_create_hook(tcb);
 }
@@ -116,6 +121,9 @@ SertosStatus sertos_task_create_static(const SertosTaskConfig* config,
 
     crit_status = sertos_port_enter_critical();
     status = sertos_scheduler_add_ready(tcb);
+    if (status == SERTOS_STATUS_OK) {
+        sertos_scheduler_register_task(tcb);
+    }
     sertos_port_exit_critical(crit_status);
 
     if (status == SERTOS_STATUS_OK) {
@@ -134,6 +142,7 @@ SertosStatus sertos_task_create(const SertosTaskConfig* config, SertosTaskHandle
     SertosTaskControlBlock* tcb;
     void* stack_buf;
     SertosTaskConfig dynamic_cfg;
+    uint32_t crit_status;
 
     if (out_handle == NULL) {
         return SERTOS_STATUS_ERROR_NULL_PTR;
@@ -165,6 +174,10 @@ SertosStatus sertos_task_create(const SertosTaskConfig* config, SertosTaskHandle
         memory_pool_free(tcb);
         return status;
     }
+
+    crit_status = sertos_port_enter_critical();
+    sertos_scheduler_register_task(tcb);
+    sertos_port_exit_critical(crit_status);
 
     *out_handle = tcb;
     if (sertos_scheduler_is_running()) {
@@ -228,6 +241,7 @@ SertosStatus sertos_task_delete(SertosTaskHandle handle)
         (void)sertos_scheduler_remove_ready(tcb);
     }
 
+    sertos_scheduler_unregister_task(tcb);
     tcb->state = SERTOS_TASK_STATE_TERMINATED;
     sertos_port_task_delete_hook(tcb);
 

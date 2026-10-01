@@ -9,6 +9,7 @@
 #include "sertos_scheduler.h"
 #include "sertos_timer.h"
 #include "sertos_port.h"
+#include "sertos_stats.h"
 #include "bitmap.h"
 #include "linked_list.h"
 #include "atomic.h"
@@ -38,6 +39,11 @@ static LinkedList s_delay_list;
  * @brief Queue of tasks placed into explicit suspension.
  */
 static LinkedList s_suspended_list;
+
+/**
+ * @brief Global registry linking every live task for whole-system enumeration.
+ */
+static LinkedList s_task_registry;
 
 /**
  * @brief Currently executing task control block pointer.
@@ -187,6 +193,7 @@ SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config)
 
     linked_list_init(&s_delay_list);
     linked_list_init(&s_suspended_list);
+    linked_list_init(&s_task_registry);
 
     sertos_current_tcb = NULL;
     s_is_running = false;
@@ -199,6 +206,7 @@ SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config)
         s_time_slicing_enabled = config->enable_time_slicing;
         s_tick_hook = config->tick_hook;
         s_idle_hook = config->idle_hook;
+        sertos_stats_set_enabled(config->enable_runtime_stats);
 
         if ((config->idle_task_stack != NULL) &&
             (config->idle_task_stack_size >= SERTOS_CONFIG_MINIMAL_STACK_SIZE)) {
@@ -213,6 +221,7 @@ SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config)
         s_time_slicing_enabled = (SERTOS_CONFIG_TIME_SLICING != 0U);
         s_tick_hook = NULL;
         s_idle_hook = NULL;
+        sertos_stats_set_enabled(false);
         idle_cfg.stack_buffer = s_idle_stack;
         idle_cfg.stack_size = sizeof(s_idle_stack);
     }
@@ -223,6 +232,7 @@ SertosStatus sertos_scheduler_init_with_config(const SertosConfig* config)
     idle_cfg.priority = 0U;
 
     status = sertos_task_create_static(&idle_cfg, &s_idle_tcb, &idle_handle);
+    sertos_stats_reset();
     return status;
 }
 
@@ -277,17 +287,78 @@ SertosTaskControlBlock* sertos_scheduler_select_next_task(void)
     return LINKED_LIST_CONTAINER_OF(head_node, SertosTaskControlBlock, state_node);
 }
 
+/**
+ * @brief Invokes a visitor for each task linked into a list via its registry_node.
+ *
+ * @param list  Pointer to the intrusive list to walk.
+ * @param visit Visitor callback.
+ * @param ctx   Opaque context forwarded to the visitor.
+ */
+static void visit_list_state_nodes(LinkedList* list, SertosTaskVisitor visit, void* ctx)
+{
+    LinkedListNode* node;
+    SertosTaskControlBlock* task;
+
+    node = list->root.next;
+    while (node != &list->root) {
+        task = LINKED_LIST_CONTAINER_OF(node, SertosTaskControlBlock, registry_node);
+        visit(task, ctx);
+        node = node->next;
+    }
+}
+
+void sertos_scheduler_visit_all_tasks(SertosTaskVisitor visit, void* ctx)
+{
+    uint32_t crit_status;
+
+    if (visit == NULL) {
+        return;
+    }
+
+    crit_status = sertos_port_enter_critical();
+    visit_list_state_nodes(&s_task_registry, visit, ctx);
+    sertos_port_exit_critical(crit_status);
+}
+
+void sertos_scheduler_register_task(SertosTaskControlBlock* tcb)
+{
+    if (tcb == NULL) {
+        return;
+    }
+    linked_list_insert_tail_direct(&s_task_registry, &tcb->registry_node);
+}
+
+void sertos_scheduler_unregister_task(SertosTaskControlBlock* tcb)
+{
+    if (tcb == NULL) {
+        return;
+    }
+    if (tcb->registry_node.next != NULL) {
+        linked_list_remove_direct(&s_task_registry, &tcb->registry_node);
+        tcb->registry_node.next = NULL;
+        tcb->registry_node.prev = NULL;
+    }
+}
+
+SertosTaskControlBlock* sertos_scheduler_get_idle_tcb(void)
+{
+    return &s_idle_tcb;
+}
+
 SertosTaskControlBlock* sertos_scheduler_perform_switch(void)
 {
     SertosTaskControlBlock* next_task;
+    SertosTaskControlBlock* prev_task;
 
+    prev_task = sertos_current_tcb;
     next_task = sertos_scheduler_select_next_task();
     if (next_task != NULL) {
-        if ((sertos_current_tcb != NULL) && (sertos_current_tcb->state == SERTOS_TASK_STATE_RUNNING)) {
-            sertos_current_tcb->state = SERTOS_TASK_STATE_READY;
+        if ((prev_task != NULL) && (prev_task->state == SERTOS_TASK_STATE_RUNNING)) {
+            prev_task->state = SERTOS_TASK_STATE_READY;
         }
         sertos_current_tcb = next_task;
         sertos_current_tcb->state = SERTOS_TASK_STATE_RUNNING;
+        sertos_stats_on_switch(prev_task, next_task);
     }
 
     return sertos_current_tcb;
@@ -343,6 +414,7 @@ void sertos_scheduler_reschedule(void)
 void sertos_scheduler_start(void)
 {
     s_is_running = true;
+    sertos_port_runtime_counter_init();
     if (sertos_port_tick_init(s_tick_rate_hz) != SERTOS_STATUS_OK) {
         s_is_running = false;
         return;

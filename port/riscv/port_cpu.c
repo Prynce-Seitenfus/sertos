@@ -105,6 +105,18 @@ SERTOS_PORT_WEAK uint32_t sertos_port_tick_clock_hz(void)
     return 10000000U;
 }
 
+SERTOS_PORT_WEAK uint32_t sertos_port_runtime_counter(void)
+{
+    uint32_t cycle;
+
+    __asm__ volatile ("csrr %0, mcycle" : "=r" (cycle));
+    return cycle;
+}
+
+SERTOS_PORT_WEAK void sertos_port_runtime_counter_init(void)
+{
+}
+
 void* sertos_port_stack_init(void* stack_top, void* stack_limit, SertosTaskFunction entry, void* param)
 {
     RiscV32StackFrame* frame;

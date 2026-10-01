@@ -99,4 +99,14 @@
 #define SERTOS_CONFIG_ASSERT_ENABLED        (1U)
 #endif
 
+/**
+ * @brief Maximum number of tasks reported by the convenience runtime-statistics
+ *        snapshot helpers.
+ *
+ * Bounds caller-provided snapshot arrays; override in sertos_app_config.h.
+ */
+#ifndef SERTOS_CONFIG_STATS_MAX_TASKS
+#define SERTOS_CONFIG_STATS_MAX_TASKS       (16U)
+#endif
+
 #endif /* SERTOS_CONFIG_H */

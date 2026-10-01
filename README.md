@@ -122,7 +122,8 @@ void app_init(void)
         .idle_task_stack     = s_custom_idle_stack,   /* Custom static Idle stack buffer */
         .idle_task_stack_size= sizeof(s_custom_idle_stack),
         .tick_hook           = custom_tick_hook,      /* Optional tick callback */
-        .idle_hook           = NULL                   /* Optional idle loop callback */
+        .idle_hook           = NULL,                  /* Optional idle loop callback */
+        .enable_runtime_stats= false                  /* Enable per-task CPU telemetry (see below) */
     };
 
     (void)sertos_scheduler_init_with_config(&cfg);
@@ -140,6 +141,60 @@ When building SertOS directly as a CMake submodule or from source, you can defin
 #define SERTOS_CONFIG_TIME_SLICING          (0U)
 #define SERTOS_CONFIG_IDLE_TASK_STACK_SIZE  (1024U)
 ```
+
+### 3. Runtime Statistics / Telemetry (`sertos_stats.h`)
+SertOS ships an always-compiled, zero-allocation runtime-statistics subsystem that tracks per-task CPU time, context-switch counts, idle/CPU load, and stack high-water usage. Collection is **runtime-configured**: it is enabled at initialization through `SertosConfig.enable_runtime_stats` (default `false`). When disabled, the per-switch hot path costs a single predictable branch; the per-task TCB overhead (a few machine words) is always present.
+
+Accounting uses a free-running run-time counter that ticks faster than the scheduler tick. Each port provides a default `sertos_port_runtime_counter()` (DWT `CYCCNT` on Cortex-M3/M4/M7/M33/M55, `mcycle` on RISC-V, `QueryPerformanceCounter` on Windows, `CLOCK_MONOTONIC` on POSIX; a coarse tick-based fallback on Cortex-M0/M0+/M23). The DWT-based ports probe `CYCCNT` at init and automatically fall back to the tick-based counter when the cycle counter is unavailable (e.g. some QEMU machine models), so statistics remain meaningful under emulation. For cross-compiled targets the hook is weak — override it with a dedicated hardware timer for higher resolution:
+
+```c
+/* Optional application override for a high-resolution timer */
+uint32_t sertos_port_runtime_counter(void)
+{
+    return MY_TIMER->CNT;
+}
+```
+
+Enable the feature and dump a CPU-load table from a periodic task:
+
+```c
+#include "sertos.h"
+
+void stats_task(void* param)
+{
+    SertosTaskStats tasks[SERTOS_CONFIG_STATS_MAX_TASKS];
+    SertosSystemStats sys;
+    SertosTick wake;
+
+    (void)param;
+    wake = sertos_scheduler_get_tick_count();
+    for (;;) {
+        size_t count = sertos_stats_get_tasks(tasks, SERTOS_CONFIG_STATS_MAX_TASKS);
+        (void)sertos_stats_get_system(&sys);
+
+        /* sys.idle_percent_x100 and each tasks[i].cpu_percent_x100 are in
+           hundredths of a percent (e.g. 4250 == 42.50%). */
+        for (size_t i = 0U; i < count; i++) {
+            printf("%-12s prio=%u cpu=%u.%02u%% switches=%u stack_free=%zu\n",
+                   tasks[i].name, tasks[i].priority,
+                   tasks[i].cpu_percent_x100 / 100U, tasks[i].cpu_percent_x100 % 100U,
+                   tasks[i].switch_in_count, tasks[i].stack_high_water);
+        }
+        (void)sertos_scheduler_delay_until(&wake, SERTOS_MS_TO_TICKS(1000U));
+    }
+}
+
+void app_init(void)
+{
+    SertosConfig cfg = { 0 };
+    cfg.tick_rate_hz = 1000U;
+    cfg.enable_runtime_stats = true;   /* Turn on telemetry collection */
+    (void)sertos_scheduler_init_with_config(&cfg);
+    /* ... create tasks, then sertos_scheduler_start(); */
+}
+```
+
+The snapshot API is deterministic: accounting is O(1) per context switch, while `sertos_stats_get_tasks()` / `sertos_stats_get_system()` walk the task lists once under a critical section and copy into caller-provided buffers (no dynamic allocation, no callbacks). `sertos_stats_reset()` zeroes all counters, and `sertos_stats_get_cpu_load_x100()` returns `10000 − idle%`. Because the run-time counter is 32-bit and may wrap, deltas are accumulated into a 64-bit `SertosRunCount` on every switch.
 
 ---
 
