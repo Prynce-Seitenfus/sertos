@@ -62,6 +62,7 @@ sertos/
 │   ├── sertos_sem.h            # Binary and counting semaphores
 │   ├── sertos_mutex.h          # Priority Inheritance Protocol mutex
 │   ├── sertos_queue.h          # FIFO message queue (ring_buffer)
+│   ├── sertos_stream_buffer.h  # SPSC byte stream buffer
 │   └── sertos_timer.h          # Monotonic software timers
 ├── src/                        # Core portable kernel source
 │   ├── sertos_task.c           # Task creation, deletion, stack checks
@@ -69,6 +70,7 @@ sertos/
 │   ├── sertos_sem.c            # Semaphore take/give/ISR signaling
 │   ├── sertos_mutex.c          # Recursive mutex with PIP elevation
 │   ├── sertos_queue.c          # Thread-safe multi-task queue
+│   ├── sertos_stream_buffer.c  # SPSC byte stream buffer implementation
 │   └── sertos_timer.c          # Software timer dispatcher
 ├── modules/                    # Foundational submodules
 │   ├── atomic/                 # Lock-free primitives & memory barriers

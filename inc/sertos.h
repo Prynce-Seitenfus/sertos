@@ -37,6 +37,9 @@ extern "C" {
 /* Thread-safe message queue IPC primitive */
 #include "sertos_queue.h"
 
+/* Single-producer single-consumer byte stream buffer */
+#include "sertos_stream_buffer.h"
+
 /* Monotonic software timers */
 #include "sertos_timer.h"
 

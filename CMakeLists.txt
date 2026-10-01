@@ -26,6 +26,7 @@ set(SERTOS_KERNEL_SOURCES
     src/sertos_sem.c
     src/sertos_mutex.c
     src/sertos_queue.c
+    src/sertos_stream_buffer.c
     src/sertos_timer.c
 )
 
